@@ -4,9 +4,9 @@
 
 | trigger | skill |
 |---|---|
-| non-trivial implementation or debugging | `retrieve-knowledge` |
-| wiki gap, stale note, or conflicting guidance found | `wiki-maintenance` (enrich path) |
-| retrieval quality or structure audit | `wiki-maintenance` (optimize path) |
+| non-trivial implementation or debugging | `$retrieve-knowledge` |
+| wiki gap, stale note, or conflicting guidance found | `$wiki-maintenance` (enrich path) |
+| retrieval quality or structure audit | `$wiki-maintenance` (optimize path) |
 
 Skill files are the workflow source of truth. `AGENTS.md` owns durable repository policy; skills own retrieval/authoring workflow mechanics. Do not duplicate procedures here.
 

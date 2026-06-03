@@ -55,7 +55,9 @@ After completing a task, if implementation revealed behavior not reflected in an
 
 ## MCP availability
 
-Use `mcp__kb` as the default retrieval interface.
+Use `mcp__kb` as the retrieval backend for this skill.
+If the wiki MCP is not present in the active tool surface, run `tool_search` to discover or confirm it before falling back to direct wiki file reads.
+Treat direct wiki file reads as fallback verification, not as the primary retrieval path.
 
 ## Evidence checkpoint (required before edits)
 
