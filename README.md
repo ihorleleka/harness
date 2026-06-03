@@ -88,7 +88,7 @@ The runner supports these environment variables:
 Example submodule setup from the consumer repository root:
 
 ```bash
-git submodule add <this-repo-url> .agents
+git submodule add https://github.com/ihorleleka/harness .agents
 ```
 
 Then make sure the consumer repo owns:
