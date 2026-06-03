@@ -48,7 +48,7 @@ If this repository is added as a submodule, the recommended follow-up is:
 
 ## What the runner does
 
-The entrypoint is [`run-kb-mcp.js`](/C:/Solutions/harness/run-kb-mcp.js).
+The entrypoint is [`run-wiki-manager-mcp.js`](/C:/Solutions/harness/run-wiki-manager-mcp.js).
 
 At startup it:
 
@@ -64,7 +64,7 @@ If a matching container is already running and healthy, the runner attaches to i
 
 - Docker installed and available on `PATH`
 - a consumer repository with a `wiki/` folder
-- Node.js available to run `run-kb-mcp.js`
+- Node.js available to run `run-wiki-manager-mcp.js`
 
 ### First-time setup
 
