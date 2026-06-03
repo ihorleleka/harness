@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wiki Maintenance"
+  short_description: "Enrich or optimize wiki notes for current and retrieval-ready guidance"
+  default_prompt: "Use $wiki-maintenance to update a wiki note (enrich path) or improve retrieval quality and structure (optimize path)."

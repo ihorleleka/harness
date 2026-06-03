@@ -1,0 +1,3 @@
+[mcp_servers.kb]
+command = "node"
+args = [".agents/run-kb-mcp.js"]

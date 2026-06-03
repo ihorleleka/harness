@@ -1,0 +1,4 @@
+interface:
+  display_name: "Retrieve Knowledge"
+  short_description: "Wiki-first retrieval and evidence checkpoint before implementation"
+  default_prompt: "Use $retrieve-knowledge to get actionable rules from wiki snippets and produce a Wiki Evidence checkpoint before any code edit."
