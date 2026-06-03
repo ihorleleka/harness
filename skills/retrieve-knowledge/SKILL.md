@@ -55,8 +55,8 @@ After completing a task, if implementation revealed behavior not reflected in an
 
 ## MCP availability
 
-Use `mcp__kb` as the retrieval backend for this skill.
-If the wiki MCP is not present in the active tool surface, run `tool_search` to discover or confirm it before falling back to direct wiki file reads.
+Use `mcp__wiki-manager` as the default retrieval interface.
+If `wiki-manager` is not present in the active tool surface, run `tool_search` to discover or confirm it before falling back to direct wiki file reads.
 Treat direct wiki file reads as fallback verification, not as the primary retrieval path.
 
 ## Evidence checkpoint (required before edits)
@@ -75,4 +75,4 @@ If a full-note read occurs, the reason must map to one of the escalation conditi
 
 ## Cross-project use
 
-Keep this skill repository-agnostic. Discover project-specific terms from the wiki, not from this skill. When MCP namespace differs from `mcp__kb`, apply the same lazy-memory policy to the equivalent tools.
+Keep this skill repository-agnostic. Discover project-specific terms from the wiki, not from this skill. When MCP namespace differs from `mcp__wiki-manager`, apply the same lazy-memory policy to the equivalent tools.

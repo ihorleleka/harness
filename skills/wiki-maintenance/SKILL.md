@@ -18,7 +18,7 @@ Two paths - pick one at the top of each use:
 - One canonical location per rule - deduplicate on write.
 - Update index links when a note is created, moved, or renamed.
 - Set `last_verified:` frontmatter to today's date on every note you touch (see Staleness convention below).
-- Use `mcp__kb` MCP as the default retrieval interface during wiki maintenance.
+- Use `mcp__wiki-manager` MCP as the default retrieval interface during wiki maintenance.
 
 ## Required output
 

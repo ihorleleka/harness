@@ -1,10 +1,10 @@
 {
-    "mcpServers": {
-        "kb": {
-            "command": "node",
-            "args": [
-                ".agents/run-kb-mcp.js"
-            ]
-        }
+	"mcpServers": {
+		"wiki-manager": {
+			"command": "node",
+			"args": [
+				".agents/run-kb-mcp.js"
+			]
+		}
     }
 }
