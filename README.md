@@ -26,17 +26,13 @@ In practice, the expected structure is:
 ```text
 <consumer-repo>/
   .agents/            <- this repository
-  AGENTS.md           <- move or replicate from this repo
-  .codex/             <- move here from this repo
-  .vscode/            <- move here from this repo
+  (agent-related local MCP config assets at repo root)
   wiki/               <- consumer repo wiki content
 ```
 
 ## Important repository layout note
 
-For real use, `.codex` and `.vscode` should be brought up one level higher into the consumer repository root, not left inside this repository.
-
-`AGENTS.md` should also be brought up to the consumer repository root.
+For real use, agent-related folders/files and local MCP configuration assets should be brought up one level higher into the consumer repository root, not left inside this repository.
 
 Why:
 
@@ -48,9 +44,7 @@ Why:
 If this repository is added as a submodule, the recommended follow-up is:
 
 1. keep the runner repository in `.agents`
-2. move or replicate `AGENTS.md` to `<consumer-repo>/AGENTS.md`
-3. move or replicate `.codex/` to `<consumer-repo>/.codex/`
-4. move or replicate `.vscode/` to `<consumer-repo>/.vscode/`
+2. move or replicate agent-related local MCP config assets from this repository to the consumer repository root
 
 ## What the runner does
 
@@ -99,9 +93,7 @@ git submodule add <this-repo-url> .agents
 
 Then make sure the consumer repo owns:
 
-- `AGENTS.md`
-- `.codex/`
-- `.vscode/`
+- agent-related local MCP config assets at repository root
 - `wiki/`
 
 and invoke the runner from the `.agents` checkout when wiring MCP tooling.
