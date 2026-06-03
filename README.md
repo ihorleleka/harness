@@ -66,6 +66,16 @@ If a matching container is already running and healthy, the runner attaches to i
 - a consumer repository with a `wiki/` folder
 - Node.js available to run `run-kb-mcp.js`
 
+### First-time setup
+
+For the smoothest first-time experience, pre-pull the Docker image before using harness:
+
+```bash
+docker pull ihorleleka/project-rag-wiki:latest
+```
+
+This avoids delays during initial runner startup while the image is being downloaded.
+
 ## Environment variables
 
 The runner supports these environment variables:
@@ -100,4 +110,4 @@ and invoke the runner from the `.agents` checkout when wiring MCP tooling.
 
 ## Scope
 
-This repository is runner infrastructure around `Project-Rag-Wiki`, not a replacement for it. The core retrieval/indexing behavior lives in the upstream project; this repository provides the surrounding local harness and workflow glue.
+This repository is runner infrastructure around `Project-Rag-Wiki`, not a replacement for it. The core retrieval/indexing behavior lives in the upstream project; this repository provides the surr[...]
