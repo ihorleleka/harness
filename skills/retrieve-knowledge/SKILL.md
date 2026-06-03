@@ -39,6 +39,16 @@ Goal: lazy memory - actionable rules from snippets first, full notes only when n
    - If that fallback still does not produce an actionable rule, stop broadening retrieval and switch to `wiki-maintenance` or surface the gap explicitly.
 7. Conflicts: prefer narrower-scope notes; prefer active runbooks for procedures. Flag conflicts for `wiki-maintenance`.
 
+## Follow-up retrieval trigger
+
+Re-enter retrieval during the same task when any of the following appears:
+
+- a new subtopic, constraint, or implementation decision emerges that was not covered by the original wiki pass
+- code, tests, or inspection reveal behavior that does not match the retrieved rule
+- the task expands into a different domain slice with its own searchable contract or placement rules
+
+When re-entering, run a fresh targeted wiki search for that new slice and re-check `last_verified:` before editing it. Reuse earlier reads only if the scope is still unchanged.
+
 ## Write-back trigger (mandatory)
 
 After completing a task, if implementation revealed behavior not reflected in any retrieved note, trigger `wiki-maintenance` (enrich path) in the same session. Do not defer.

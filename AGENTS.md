@@ -32,6 +32,7 @@ Every response must state one of:
 ## Stop condition
 
 Stop and return to wiki lookup if work drifts into rediscovering architecture from code while relevant wiki likely exists. Missing wiki consultation for covered domains is a process failure - correct it in the same turn.
+Retrieval may be re-entered during the same task whenever a new subtopic, constraint, or implementation decision emerges that should be verified before editing that area.
 
 ## Core rules
 
