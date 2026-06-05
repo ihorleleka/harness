@@ -37,14 +37,12 @@ For real use, agent-related folders/files and local MCP configuration assets sho
 Why:
 
 - `AGENTS.md` needs to govern work at the consumer repo boundary, not only inside the `.agents` submodule
-- `.codex` usually needs to apply to the full consumer repository, not only the runner submodule
-- `.vscode` workspace settings are also more useful at the consumer repo root
-- the runner script already treats the parent directory as the operating root, so editor and Codex config should match that same boundary
+- rest of files are targeting different agents where support has been introduced and therefore they would need to be in the root (copy from expand-to-root directory)
 
 If this repository is added as a submodule, the recommended follow-up is:
 
 1. keep the runner repository in `.agents`
-2. move or replicate agent-related local MCP config assets from this repository to the consumer repository root
+2. `expand-to-root` directory assets from this repository to the consumer repository root
 
 ## What the runner does
 
