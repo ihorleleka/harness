@@ -4,10 +4,12 @@
     "wiki-manager": {
       "type": "local",
       "enabled": true,
-      "command": [
-        "node",
-        ".agents/run-wiki-manager-mcp.js"
-      ]
+      "command": ["node", ".agents/run-wiki-manager-mcp.js"]
     }
-  }
+  },
+  "instructions": [
+    "AGENTS.md",
+    ".agents/skills/retrieve-knowledge/SKILL.md",
+    ".agents/skills/wiki-maintenance/SKILL.md"
+  ]
 }
