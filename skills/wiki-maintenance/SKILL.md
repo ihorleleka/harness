@@ -18,7 +18,8 @@ Two paths - pick one at the top of each use:
 - One canonical location per rule - deduplicate on write.
 - Update index links when a note is created, moved, or renamed.
 - Set `last_verified:` frontmatter to today's date on every note you touch (see Staleness convention below).
-- Use `mcp__wiki-manager` MCP as the default retrieval interface during wiki maintenance.
+- Use the wiki MCP tools as the default retrieval interface during wiki maintenance. Tool names vary by agent; common MCP-prefixed names include `wiki-manager_wiki_search`, `wiki-manager_wiki_read`, `wiki-manager_wiki_list`, `wiki-manager_wiki_write`, and `wiki-manager_wiki_append`.
+- When a wiki MCP tool is present in the active tool surface, invoke it through the agent/client's native tool-call mechanism. Do not print a JSON object such as `{"name":"wiki-manager_wiki_search","arguments":{...}}` as a substitute for executing the tool.
 
 ## Required output
 
