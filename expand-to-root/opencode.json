@@ -8,8 +8,6 @@
     }
   },
   "instructions": [
-    "AGENTS.md",
-    ".agents/skills/retrieve-knowledge/SKILL.md",
-    ".agents/skills/wiki-maintenance/SKILL.md"
+    "AGENTS.md"
   ]
 }
