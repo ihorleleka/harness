@@ -45,3 +45,6 @@ $RECYCLE.BIN/
 
 # NFS temporary files
 .nfs*
+
+# Local smoke-test output
+.artifacts/

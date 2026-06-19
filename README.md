@@ -8,9 +8,186 @@ It does not contain the wiki content itself. Its job is to:
 - mount the consumer repository's `wiki/` folder into that container
 - provide local agents skills and editor settings that support that workflow
 
+## Quick setup
+
+Run these commands from the consumer repository root.
+
+First, pull the Docker image used by the wiki MCP server:
+
+```bash
+docker pull ihorleleka/project-rag-wiki:latest
+```
+
+Then install the harness with npx:
+
+```bash
+npx github:ihorleleka/harness install . --force
+```
+
+The GitHub ref must contain `package.json` and `bin/harness.js`, so commit and
+push harness package changes before using this command from another repository.
+
+Later, refresh the installed harness with:
+
+```bash
+npx github:ihorleleka/harness update . --force
+```
+
+Or use the committed wrapper script that the installer places under `.agents`:
+
+```bash
+.agents\update-harness.cmd --force
+```
+
+On macOS or Linux:
+
+```bash
+sh ./.agents/update-harness.sh --force
+```
+
+## Delivery options
+
+### Install with npx
+
+The recommended delivery path is the GitHub-backed npx installer:
+
+```bash
+npx github:ihorleleka/harness install . --force
+```
+
+The GitHub ref must already contain `package.json` and `bin/harness.js`.
+
+That command copies the runner payload into the target repository and expands the
+agent configuration files into the repository root:
+
+```text
+<consumer-repo>/
+  .agents/            <- copied harness runner payload
+  AGENTS.md           <- copied from expand-to-root
+  opencode.json       <- copied from expand-to-root
+  .claude/
+  .codex/
+  .vscode/
+  wiki/.gitkeep
+```
+
+The recommended command uses `--force` so the root assets from `expand-to-root`
+are fully refreshed:
+
+```bash
+npx github:ihorleleka/harness install . --force
+```
+
+Without `--force`, existing root configuration files are left in place.
+
+To refresh an existing installed copy:
+
+```bash
+npx github:ihorleleka/harness update . --force
+```
+
+The installer also copies update wrappers into the installed harness payload:
+
+```bash
+.agents\update-harness.cmd --force
+sh ./.agents/update-harness.sh --force
+```
+
+Those scripts run `npx github:ihorleleka/harness update ..` from inside `.agents`.
+They can be committed to the target repository and used by developers or CI.
+
+The installer also supports a different direct-child folder name:
+
+```bash
+npx github:ihorleleka/harness install . --agents-dir harness-agent --force
+```
+
+The folder must be a direct child of the consumer repository because the runner
+resolves its parent directory as the project root.
+
+### Publishing the npx package
+
+This repository already has the package metadata and CLI entrypoint needed for
+public npm publishing:
+
+```json
+{
+  "name": "@ihorleleka/harness",
+  "bin": {
+    "harness": "bin/harness.js"
+  }
+}
+```
+
+Before publishing, verify the package contents:
+
+```bash
+npm pack --dry-run
+```
+
+Then sign in and publish the scoped package publicly:
+
+```bash
+npm login
+npm publish --access public
+```
+
+Scoped npm packages are private by default, so `--access public` is required for
+the first public publish. For later releases, bump the version first:
+
+```bash
+npm version patch
+npm publish --access public
+```
+
+After publishing, consumers may still use the GitHub source directly:
+
+```bash
+npx github:ihorleleka/harness install . --force
+npx github:ihorleleka/harness update . --force
+```
+
+### Updating committed installs
+
+When the harness is installed with `npx`, the generated `.agents` directory and
+root config files should usually be committed to the consumer repository. To
+update that committed copy later:
+
+```bash
+.agents\update-harness.cmd --force
+git status
+git add .agents AGENTS.md opencode.json .claude .codex .vscode
+git commit -m "chore: update harness"
+```
+
+On macOS or Linux:
+
+```bash
+sh ./.agents/update-harness.sh --force
+git status
+git add .agents AGENTS.md opencode.json .claude .codex .vscode
+git commit -m "chore: update harness"
+```
+
+By default, root-level files are not overwritten if they already exist. Use
+`--force` when you intentionally want the latest harness root assets to replace
+the committed copies:
+
+```bash
+.agents\update-harness.cmd --force
+```
+
+For automated updates, run the same wrapper in CI on a schedule or manually, then
+open a pull request with the resulting diff. The important command is still just:
+
+```bash
+npx github:ihorleleka/harness update . --force
+```
+
 ## Intended placement
 
-This repository is meant to be consumed from another repository, ideally as a git submodule mounted at:
+The harness is meant to be consumed from another repository with its runner
+payload mounted at:
 
 ```text
 <consumer-repo>/.agents
@@ -25,24 +202,27 @@ In practice, the expected structure is:
 
 ```text
 <consumer-repo>/
-  .agents/            <- this repository
-  (agent-related local MCP config assets at repo root)
+  .agents/            <- installed harness runner payload
+  AGENTS.md           <- expanded root policy
+  opencode.json       <- expanded MCP config
+  .claude/            <- expanded local agent config
+  .codex/             <- expanded local agent config
+  .vscode/            <- expanded local editor/MCP config
   wiki/               <- consumer repo wiki content
 ```
 
 ## Important repository layout note
 
-For real use, agent-related folders/files and local MCP configuration assets should be brought up one level higher into the consumer repository root, not left inside this repository.
+For real use, agent-related folders/files and local MCP configuration assets
+belong in the consumer repository root, not only inside `.agents`.
 
 Why:
 
-- `AGENTS.md` needs to govern work at the consumer repo boundary, not only inside the `.agents` submodule
-- rest of files are targeting different agents where support has been introduced and therefore they would need to be in the root (copy from expand-to-root directory)
+- `AGENTS.md` needs to govern work at the consumer repo boundary, not only inside `.agents`
+- the rest of the files target different agents and editors, so they need to be
+  expanded from `expand-to-root` into the root
 
-If this repository is added as a submodule, the recommended follow-up is:
-
-1. keep the runner repository in `.agents`
-2. `expand-to-root` directory assets from this repository to the consumer repository root
+The npx installer performs that expansion automatically.
 
 ## What the runner does
 
@@ -64,16 +244,6 @@ If a matching container is already running and healthy, the runner attaches to i
 - a consumer repository with a `wiki/` folder
 - Node.js available to run `run-wiki-manager-mcp.js`
 
-### First-time setup
-
-For the smoothest first-time experience, pre-pull the Docker image before using harness:
-
-```bash
-docker pull ihorleleka/project-rag-wiki:latest
-```
-
-This avoids delays during initial runner startup while the image is being downloaded.
-
 ## Environment variables
 
 The runner supports these environment variables:
@@ -91,20 +261,27 @@ The runner supports these environment variables:
 - `KB_MERGE_ADJACENT_WINDOW`
 - `KB_WATCH_INTERVAL_SECONDS`
 
-## Suggested setup
+## Alternative: submodule
 
-Example submodule setup from the consumer repository root:
+The submodule path is available when a project specifically wants Git to track
+the harness as a nested repository. The npx installer is the preferred setup for
+normal use.
+
+From the consumer repository root:
 
 ```bash
 git submodule add https://github.com/ihorleleka/harness .agents
+xcopy .agents\expand-to-root\* . /E /I /Y
 ```
 
-Then make sure the consumer repo owns:
+On macOS or Linux:
 
-- agent-related local MCP config assets at repository root
-- `wiki/`
+```bash
+git submodule add https://github.com/ihorleleka/harness .agents
+cp -R .agents/expand-to-root/. .
+```
 
-and invoke the runner from the `.agents` checkout when wiring MCP tooling.
+Then commit both the submodule reference and the expanded root assets.
 
 ## Scope
 

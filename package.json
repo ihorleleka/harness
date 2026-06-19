@@ -1,0 +1,21 @@
+{
+  "name": "@ihorleleka/harness",
+  "version": "0.1.0",
+  "description": "Installer and runner assets for Project-Rag-Wiki agent harness integration.",
+  "bin": {
+    "harness": "bin/harness.js"
+  },
+  "files": [
+    "bin/",
+    "expand-to-root/",
+    "skills/",
+    "run-wiki-manager-mcp.js",
+    "update-harness.cmd",
+    "update-harness.sh",
+    "README.md"
+  ],
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18"
+  }
+}
