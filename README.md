@@ -8,6 +8,43 @@ It does not contain the wiki content itself. Its job is to:
 - mount the consumer repository's `wiki/` folder into that container
 - provide local agents skills and editor settings that support that workflow
 
+## Quick setup
+
+Run these commands from the consumer repository root.
+
+First, pull the Docker image used by the wiki MCP server:
+
+```bash
+docker pull ihorleleka/project-rag-wiki:latest
+```
+
+Then install the harness with npx:
+
+```bash
+npx github:ihorleleka/harness install . --force
+```
+
+The GitHub ref must contain `package.json` and `bin/harness.js`, so commit and
+push harness package changes before using this command from another repository.
+
+Later, refresh the installed harness with:
+
+```bash
+npx github:ihorleleka/harness update . --force
+```
+
+Or use the committed wrapper script that the installer places under `.agents`:
+
+```bash
+.agents\update-harness.cmd --force
+```
+
+On macOS or Linux:
+
+```bash
+sh ./.agents/update-harness.sh --force
+```
+
 ## Agent wiki workflow
 
 The installed agent instructions are built around packet-first wiki retrieval.
@@ -59,43 +96,6 @@ route, indexing path, auth boundary, or implementation decision appears.
 When implementation reveals durable behavior missing from retrieved packets,
 agents should use `$wiki-maintenance` in the same session so the wiki evolves
 and future sessions receive the rule directly as packet context.
-
-## Quick setup
-
-Run these commands from the consumer repository root.
-
-First, pull the Docker image used by the wiki MCP server:
-
-```bash
-docker pull ihorleleka/project-rag-wiki:latest
-```
-
-Then install the harness with npx:
-
-```bash
-npx github:ihorleleka/harness install . --force
-```
-
-The GitHub ref must contain `package.json` and `bin/harness.js`, so commit and
-push harness package changes before using this command from another repository.
-
-Later, refresh the installed harness with:
-
-```bash
-npx github:ihorleleka/harness update . --force
-```
-
-Or use the committed wrapper script that the installer places under `.agents`:
-
-```bash
-.agents\update-harness.cmd --force
-```
-
-On macOS or Linux:
-
-```bash
-sh ./.agents/update-harness.sh --force
-```
 
 ## Delivery options
 
