@@ -10,43 +10,32 @@
 
 Skill files are the workflow source of truth. `AGENTS.md` owns durable repository policy; skills own retrieval/authoring workflow mechanics. Do not duplicate procedures here.
 
-## Wiki evidence gate (mandatory)
+## Wiki gate
 
-Before any code edit on a non-trivial task, run `$retrieve-knowledge` and record:
-
-- query used
-- context packet source path(s), snippet source path(s), or explicit gap statement
-- `last_verified:` date of source note (or "missing")
-- confidence / `needs_verification` when returned
-- adopted rule
-
-If this checkpoint cannot be produced, perform wiki search before proceeding.
-
-Prefer compiled context packets over raw wiki prose. Packets are meant to be directly usable session context; avoid recomputing architecture decisions from full notes or source code when a current high-confidence packet already answers the question.
-
-If code reality contradicts wiki guidance, treat the wiki as authoritative only until evidence proves it stale or incomplete. Then update the note in the same session using `$wiki-maintenance`.
+Before non-trivial code edits, run `$retrieve-knowledge`. Prefer current compiled packets over full notes. If code contradicts wiki guidance, verify code reality and use `$wiki-maintenance` only when the durable write-back threshold below is met.
 
 ## Delivery standard
 
-Every response must state one of:
-- which wiki note was updated and why
-- why no wiki update was needed
+Every response must state which wiki note changed, or briefly why no wiki update was needed. Do not create wiki notes merely to satisfy this rule.
 
-## Stop condition
+## Communication budget
 
-Stop and return to wiki lookup if work drifts into rediscovering architecture from code while relevant wiki likely exists. Missing wiki consultation for covered domains is a process failure - correct it in the same turn.
-Retrieval may be re-entered at any time during the same task. Do it whenever a new subtopic, constraint, unfamiliar component, or implementation decision emerges that should be verified before editing that area.
+Default to terse outputs:
+
+- During work, send progress updates only for long-running or blocked tasks; keep them to one sentence.
+- In final responses, prefer 1-3 short bullets or a short paragraph.
+- Do not include evidence logs, todo/done lists, test transcripts, or detailed reasoning unless requested, high-risk, or decision-changing.
+- For minor fixes, state the files changed and whether verification ran; omit broad summaries.
+
+## Wiki write-back threshold
+
+Use `$wiki-maintenance` only when future sessions would need the outcome as decision context: durable architecture rules, repeated patterns/invariants, placement conventions, stale/missing/conflicting wiki rules, or cross-cutting behavior affecting data model, migrations, APIs, startup, import/export, or major UI workflows.
+
+Do not update wiki notes for one-off details, cosmetic tweaks, routine CSS fixes, typo fixes, isolated bugs with no reusable rule, or task-specific outcomes. When unsure, skip wiki write-back unless the conclusion would be useful to query later by name.
 
 ## Core rules
 
-- Choose the work area from the task before editing.
 - Follow architecture and placement rules from the relevant wiki notes.
 - Prefer targeted changes within task scope; do not opportunistically modernize unrelated areas.
-- Keep wiki note scope explicit: `project-specific` | `platform` | `general`.
-- Prefer standard wiki notes structured with `Decision`, `Do`, `Do not`, `Evidence`, and `Retrieval hints` so the MCP image can return decision-ready context packets.
-- Treat context packets as MCP-owned derived index records: agents author source notes, the wiki MCP image parses/compiles/ranks packets and reports stale or contradictory evidence.
-- Use `wiki_write` for wiki mutation. Do not rely on append-style wiki updates; rewrite the complete note so frontmatter, semantic sections, links, and retrieval hints stay coherent.
-- When implementation reveals durable behavior not present in retrieved packets, enrich the wiki in the same session. The system should improve itself as work discovers reusable rules.
 - Route changes by purpose: repository-wide durable rules in `AGENTS.md`; living domain knowledge in `wiki/`; workflow mechanics in skill files.
 - Do not run frontend builds unless the user explicitly asks.
-- Keep this file limited to durable working rules; put evolving knowledge in `wiki/`.
