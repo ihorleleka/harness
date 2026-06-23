@@ -4,3 +4,6 @@ args = [".agents/run-wiki-manager-mcp.js"]
 
 [mcp_servers.wiki-manager.tools.wiki_search]
 approval_mode = "approve"
+
+[mcp_servers.wiki-manager.tools.wiki_read]
+approval_mode = "approve"
