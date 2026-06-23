@@ -8,6 +8,58 @@ It does not contain the wiki content itself. Its job is to:
 - mount the consumer repository's `wiki/` folder into that container
 - provide local agents skills and editor settings that support that workflow
 
+## Agent wiki workflow
+
+The installed agent instructions are built around packet-first wiki retrieval.
+For non-trivial implementation or debugging, agents should use
+`$retrieve-knowledge` before editing and prefer `wiki_search` results where
+`record_type` is `packet`.
+
+Packets are derived from normal Markdown notes by the MCP server. Agents do not
+author generated packet files. They maintain standard wiki notes with:
+
+```yaml
+---
+id: stable-note-id
+scope: project-specific
+last_verified: YYYY-MM-DD
+status: active
+applies_to:
+  - domain-or-component
+---
+```
+
+and semantic sections:
+
+```markdown
+## Use this when
+## Decision
+## Do
+## Do not
+## Evidence
+## Retrieval hints
+```
+
+The wiki MCP surface used by the harness is:
+
+- `wiki_search` - returns decision-ready context packets before raw chunks when packets match
+- `wiki_read` - reads a complete Markdown note
+- `wiki_list` - lists indexed Markdown notes
+- `wiki_write` - writes a complete Markdown note and refreshes the index
+
+There is intentionally no append workflow. Agents should read the current note,
+merge changes locally, then use `wiki_write` with the complete document. This
+keeps frontmatter, semantic sections, links, and retrieval hints coherent enough
+for future searches to return useful packets.
+
+During agentic work, retrieval is not a one-time gate. Agents may re-enter
+`$retrieve-knowledge` whenever a new component, constraint, data contract,
+route, indexing path, auth boundary, or implementation decision appears.
+
+When implementation reveals durable behavior missing from retrieved packets,
+agents should use `$wiki-maintenance` in the same session so the wiki evolves
+and future sessions receive the rule directly as packet context.
+
 ## Quick setup
 
 Run these commands from the consumer repository root.
@@ -259,6 +311,7 @@ The runner supports these environment variables:
 - `KB_CHUNK_OVERLAP`
 - `KB_TOP_K`
 - `KB_MERGE_ADJACENT_WINDOW`
+- `KB_STALENESS_DAYS` - age threshold for packet `needs_verification`; default `90`
 - `KB_WATCH_INTERVAL_SECONDS`
 
 ## Alternative: submodule

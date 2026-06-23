@@ -1,4 +1,4 @@
 interface:
   display_name: "Retrieve Knowledge"
-  short_description: "Wiki-first retrieval and evidence checkpoint before implementation"
-  default_prompt: "Use $retrieve-knowledge to get actionable rules from wiki snippets and produce a Wiki Evidence checkpoint before any code edit."
+  short_description: "Packet-first wiki retrieval and evidence checkpoint before implementation"
+  default_prompt: "Use $retrieve-knowledge to fetch decision-ready wiki context packets, rely on them before recomputing architecture from code, and produce a Wiki Evidence checkpoint before any non-trivial code edit."
