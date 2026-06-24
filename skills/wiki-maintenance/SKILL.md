@@ -16,6 +16,7 @@ Pick one path:
 - Keep workflow mechanics in skills, repo policy in `AGENTS.md`, and domain truth in wiki notes.
 - Scope notes as `project-specific`, `platform`, or `general`.
 - Keep one canonical location per rule; deduplicate on write.
+- Prefer generalizing or correcting existing guidance over adding new narrow bullets; keep task-specific facts in `Evidence` or examples unless they are the durable rule.
 - Read the current note first, merge locally, then write the complete note with `wiki_write`; do not append fragments.
 - Set `last_verified:` to today on every note touched.
 - Prefer decision-ready sections: `Use this when`, `Decision`, `Do`, `Do not`, `Evidence`, `Retrieval hints`.
