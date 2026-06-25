@@ -1,0 +1,4 @@
+interface:
+  display_name: "Initialize Wiki"
+  short_description: "Bootstrap typed wiki notes for a newly installed repository"
+  default_prompt: "Use $initialize-wiki to inspect the repository and create an initial typed wiki in the requested depth mode."

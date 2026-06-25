@@ -11,12 +11,14 @@ Goal: get decision-ready wiki context before non-trivial edits without loading l
 ## Checklist
 
 1. Search wiki with 1-2 intent-rich queries: `<task> <component> <contract> <constraint>`.
-2. Prefer `record_type: packet` results. Read `rule`, `do`, `do_not`, `source`, `last_verified`, `confidence`, `needs_verification`, and `applies_to`.
-3. Treat high-confidence current packets as enough when they give a concrete rule and the planned change stays within scope.
-4. Read full notes only for conflicts, missing hard rules, security/auth, data migration, infra reliability, or explicit exhaustive review.
-5. If `last_verified` is missing/older than 90 days or `needs_verification` is true, verify against code before relying on it.
-6. Re-enter retrieval only when a new domain slice, unfamiliar component, contradiction, or durable architecture inference appears.
-7. Use active wiki MCP tools (`wiki_search`, `wiki_read`, `wiki_list`) through native tool calls; if absent, use tool discovery before direct wiki file reads.
+2. Prefer `record_type: packet` results. Read `kind`, `rule`, `source`, `last_verified`, `confidence`, `needs_verification`, `applies_to`, and `gaps`.
+3. Use packet fields by `kind`: `do` / `do_not` for rules, `decision` / `rationale` / `consequences` for decisions, `summary` / `key_facts` for references, `steps` for runbooks, and `terms` / `aliases` for glossaries. Treat `rule` as the compact packet headline for all kinds.
+4. Treat high-confidence current packets as enough when they give concrete guidance and the planned change stays within scope.
+5. Do not force all wiki context into rules. Reference and decision packets can be sufficient when the task needs facts or rationale rather than mandatory behavior.
+6. Read full notes only for conflicts, missing hard rules, security/auth, data migration, infra reliability, or explicit exhaustive review.
+7. If `last_verified` is missing/older than 90 days, `needs_verification` is true, or `gaps` mention missing typed-note structure, verify against code before relying on it.
+8. Re-enter retrieval only when a new domain slice, unfamiliar component, contradiction, or durable architecture inference appears.
+9. Use active wiki MCP tools (`wiki_search`, `wiki_read`, `wiki_list`) through native tool calls; if absent, use tool discovery before direct wiki file reads.
 
 ## Budgets
 
@@ -27,7 +29,9 @@ Goal: get decision-ready wiki context before non-trivial edits without loading l
 
 Use `wiki-maintenance` only when durable/reusable behavior is missing, stale, or contradictory and meets the `AGENTS.md` write-back threshold.
 
-Do not trigger wiki maintenance for one-off implementation details, cosmetic tweaks, routine fixes, typo fixes, isolated bug fixes with no reusable rule, or task-specific outcomes. In those cases, briefly state that no wiki update was needed.
+Use the maintenance path when a useful note lacks `kind`, uses the wrong note shape, mixes unrelated concerns, or would need repeated full-note reads because packet fields are weak.
+
+Do not trigger wiki maintenance for one-off implementation details, cosmetic tweaks, routine fixes, typo fixes, isolated bug fixes with no reusable guidance, or task-specific outcomes. In those cases, briefly state that no wiki update was needed.
 
 ## Evidence Checkpoint
 
@@ -35,6 +39,7 @@ Before edits, record internally or briefly in the response only when useful:
 
 - query
 - packet/note source or explicit gap
+- `kind`
 - `last_verified`
-- confidence / `needs_verification`
-- adopted rule
+- confidence / `needs_verification` / important `gaps`
+- adopted guidance

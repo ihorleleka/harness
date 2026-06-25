@@ -1,0 +1,4 @@
+interface:
+  display_name: "Migrate Wiki"
+  short_description: "Convert existing wiki notes to the current typed note schema"
+  default_prompt: "Use $migrate-wiki to audit existing wiki notes, classify them by kind, and migrate them to typed packet-ready structure."

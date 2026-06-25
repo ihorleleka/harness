@@ -52,12 +52,19 @@ For non-trivial implementation or debugging, agents should use
 `$retrieve-knowledge` before editing and prefer `wiki_search` results where
 `record_type` is `packet`.
 
+For wiki lifecycle work, agents use separate skills:
+
+- `$initialize-wiki` - bootstrap a new or empty `wiki/` with selectable depth modes.
+- `$migrate-wiki` - convert existing notes to the current typed note schema.
+- `$wiki-maintenance` - enrich or optimize individual notes during normal work.
+
 Packets are derived from normal Markdown notes by the MCP server. Agents do not
 author generated packet files. They maintain standard wiki notes with:
 
 ```yaml
 ---
 id: stable-note-id
+kind: rule
 scope: project-specific
 last_verified: YYYY-MM-DD
 status: active
@@ -66,22 +73,34 @@ applies_to:
 ---
 ```
 
-and semantic sections:
+Supported `kind` values are:
 
-```markdown
-## Use this when
-## Decision
-## Do
-## Do not
-## Evidence
-## Retrieval hints
-```
+- `rule` - mandatory durable behavior agents should follow.
+- `decision` - architecture, product, or implementation choices.
+- `reference` - durable facts, concepts, API shapes, or domain context that are not rules.
+- `runbook` - repeatable operational or maintenance procedures.
+- `glossary` - names, terms, aliases, and vocabulary.
+
+Each kind has its own compact note shape:
+
+| kind | sections |
+|---|---|
+| `rule` | `Use this when`, `Rule`, `Do`, `Do not`, `Evidence`, `Retrieval hints` |
+| `decision` | `Use this when`, `Decision`, `Rationale`, `Consequences`, `Evidence`, `Retrieval hints` |
+| `reference` | `Use this when`, `Summary`, `Key facts`, `Evidence`, `Retrieval hints` |
+| `runbook` | `Use this when`, `Steps`, `Do not`, `Evidence`, `Retrieval hints` |
+| `glossary` | `Terms`, `Aliases`, `Retrieval hints` |
+
+Do not force notes into `Do` / `Do not` when they are really references or
+decisions. Keep todos out of wiki unless they represent durable debt, known
+limitations, or deferred work future sessions must account for.
 
 The wiki MCP surface used by the harness is:
 
 - `wiki_search` - returns decision-ready context packets before raw chunks when packets match
 - `wiki_read` - reads a complete Markdown note
 - `wiki_list` - lists indexed Markdown notes
+- `wiki_schema_report` - audits typed note schema, packet gaps, stale verification, duplicate IDs, and broken wiki links
 - `wiki_write` - writes a complete Markdown note and refreshes the index
 
 There is intentionally no append workflow. Agents should read the current note,
@@ -95,7 +114,11 @@ route, indexing path, auth boundary, or implementation decision appears.
 
 When implementation reveals durable behavior missing from retrieved packets,
 agents should use `$wiki-maintenance` in the same session so the wiki evolves
-and future sessions receive the rule directly as packet context.
+and future sessions receive the guidance directly as packet context.
+
+When implementation reveals durable facts or decisions rather than mandatory
+rules, agents should still use `$wiki-maintenance`; the note should be written as
+`kind: reference` or `kind: decision` instead of pretending it is a rule.
 
 ## Delivery options
 
@@ -235,6 +258,49 @@ open a pull request with the resulting diff. The important command is still just
 ```bash
 npx github:ihorleleka/harness update . --force
 ```
+
+### Upgrading existing typed-wiki installs
+
+When upgrading a consumer repository from older untyped wiki notes to the typed
+schema:
+
+1. Update the committed harness copy:
+
+   ```bash
+   .agents\update-harness.cmd --force
+   ```
+
+   On macOS or Linux:
+
+   ```bash
+   sh ./.agents/update-harness.sh --force
+   ```
+
+2. Pull the current wiki service image:
+
+   ```bash
+   docker pull ihorleleka/project-rag-wiki:latest
+   ```
+
+3. If a wiki service container is already running, stop it so the runner starts
+   a fresh container from the updated image. The old container can otherwise keep
+   serving the previous MCP tool surface.
+
+4. Run `$migrate-wiki`. The skill should use `wiki_schema_report` when the
+   updated container exposes it, then rewrite complete notes through
+   `wiki_write`.
+
+5. Commit the harness update and migrated wiki notes together:
+
+   ```bash
+   git status
+   git add .agents AGENTS.md opencode.json .claude .codex .vscode wiki
+   git commit -m "chore: update wiki harness and migrate wiki schema"
+   ```
+
+If `wiki_schema_report` is missing, the consumer repo is still using an older
+Project-Rag-Wiki image or an old running container. Pull the image and restart
+the service before migrating broad wiki content.
 
 ## Intended placement
 
