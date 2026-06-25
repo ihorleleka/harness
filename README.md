@@ -95,6 +95,28 @@ Do not force notes into `Do` / `Do not` when they are really references or
 decisions. Keep todos out of wiki unless they represent durable debt, known
 limitations, or deferred work future sessions must account for.
 
+Suggested wiki sections are a menu, not a required checklist. `$initialize-wiki`
+uses them when bootstrapping, `$migrate-wiki` uses them as consolidation targets,
+and `$wiki-maintenance` uses them as canonical homes when a durable gap needs a
+new note:
+
+- `index.md` (`reference`) - map of active notes and retrieval hints
+- `overview.md` (`reference`) - repository purpose, runtime, and entrypoints
+- `architecture.md` (`decision`) - major architecture, product, or implementation choices
+- `coding-standards.md` (`rule`) - mandatory coding, validation, testing, generated-code, or review rules
+- `development-runbook.md` (`runbook`) - install, build, test, run, and verification commands
+- `components/<name>.md` (`reference`) - primary modules, bounded contexts, or domains
+- `api.md` or `api/<area>.md` (`reference` or `rule`) - public contracts, routes, request/response shapes, or compatibility rules
+- `data.md` or `data/<area>.md` (`reference` or `decision`) - data model facts, persistence choices, migrations, indexing, import/export, or integration contracts
+- `ui-patterns.md` (`rule` or `reference`) - shared UI conventions, component placement, accessibility, or interaction patterns
+- `operations/<topic>.md` (`runbook`) - deployment, configuration, maintenance, observability, recovery, or repeated operational tasks
+- `rules/<topic>.md` (`rule`) - focused mandatory placement or behavior rules that do not fit a broader canonical note
+- `glossary.md` (`glossary`) - project terms, aliases, acronyms, and naming vocabulary
+
+Agents should only create these notes when verified repository evidence supports
+useful content. They should not create empty placeholders just because a section
+appears in the menu.
+
 The wiki MCP surface used by the harness is:
 
 - `wiki_search` - returns decision-ready context packets before raw chunks when packets match
@@ -111,6 +133,27 @@ for future searches to return useful packets.
 During agentic work, retrieval is not a one-time gate. Agents may re-enter
 `$retrieve-knowledge` whenever a new component, constraint, data contract,
 route, indexing path, auth boundary, or implementation decision appears.
+
+Concrete tasks may still need repo-wide guidance. When a named component change
+could be constrained by architecture, placement, coding standards, validation,
+auth/security, data modeling, migrations, tests, startup/configuration, or shared
+UI patterns, `$retrieve-knowledge` may run one guardrail query for matching
+`rule` and `decision` packets. The agent should adopt only packets that directly
+constrain the planned edit and avoid full global notes unless a packet points to
+a hard rule without enough actionable detail.
+
+For broad requests where the agent does not yet know the component or contract,
+`$retrieve-knowledge` uses a bounded orientation pass. It first asks for
+repository-map packets such as project overview, architecture, coding standards,
+placement rules, and glossary entries, then asks one task-shaped query based on
+the user's verb. It should adopt only the top few directly relevant packets and
+avoid full-note reads until code inspection reveals a concrete slice or the
+packets conflict, are stale, or identify missing hard rules.
+
+To make that work, global wiki notes should route rather than dump context.
+`index.md`, `architecture.md`, `coding-standards.md`, component notes, and
+`glossary.md` are especially useful when they have clear `applies_to` values and
+`Retrieval hints`.
 
 When implementation reveals durable behavior missing from retrieved packets,
 agents should use `$wiki-maintenance` in the same session so the wiki evolves

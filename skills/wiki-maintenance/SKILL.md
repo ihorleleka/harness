@@ -17,6 +17,7 @@ Pick one path:
 - Classify the note first with `kind: rule`, `decision`, `reference`, `runbook`, or `glossary`.
 - Scope notes as `project-specific`, `platform`, or `general`.
 - Keep one canonical location per rule; deduplicate on write.
+- Use the suggested wiki sections as canonical homes when creating or moving notes.
 - Prefer generalizing or correcting existing guidance over adding new narrow bullets; keep task-specific facts in `Evidence` or examples unless they are the durable guidance.
 - Read the current note first, merge locally, then write the complete note with `wiki_write`; do not append fragments.
 - Set `last_verified:` to today on every note touched.
@@ -49,6 +50,25 @@ Use these shapes:
 - `glossary`: `Terms`, `Aliases`, `Retrieval hints`.
 
 Do not force a reference or decision into `Do` / `Do not`. If a note contains both mandatory behavior and background facts, split it or make the mandatory behavior the canonical rule and move supporting facts into `Evidence`.
+
+## Suggested Wiki Sections
+
+Use these as canonical homes when a durable gap needs a new note or when
+optimization reveals scattered guidance. Do not create placeholder notes without
+verified content.
+
+- `index.md` (`reference`): map of active notes and retrieval hints.
+- `overview.md` (`reference`): repository purpose, main runtime, important entrypoints.
+- `architecture.md` (`decision`): major architecture, product, or implementation choices.
+- `coding-standards.md` (`rule`): mandatory coding conventions, validation rules, testing rules, generated-code rules, or review constraints.
+- `development-runbook.md` (`runbook`): install, build, test, run, and common verification commands.
+- `components/<name>.md` (`reference`): primary modules, bounded contexts, or domains.
+- `api.md` or `api/<area>.md` (`reference` or `rule`): public contracts, route conventions, request/response shapes, or API compatibility rules.
+- `data.md` or `data/<area>.md` (`reference` or `decision`): data model facts, persistence choices, migrations, indexing, import/export, or integration contracts.
+- `ui-patterns.md` (`rule` or `reference`): shared UI conventions, component placement, accessibility rules, or interaction patterns.
+- `operations/<topic>.md` (`runbook`): deployment, configuration, maintenance, observability, recovery, or other repeated operational tasks.
+- `rules/<topic>.md` (`rule`): focused mandatory placement or behavior rules that do not belong in a broader canonical rule note.
+- `glossary.md` (`glossary`): project terms, aliases, acronyms, and naming vocabulary.
 
 ## Enrich
 

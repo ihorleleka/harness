@@ -54,5 +54,6 @@ Do not update wiki notes for one-off details, cosmetic tweaks, routine CSS fixes
 - Follow architecture and placement rules from the relevant wiki notes.
 - Prefer targeted changes within task scope; do not opportunistically modernize unrelated areas.
 - Route changes by purpose: repository-wide durable rules in `AGENTS.md`; living domain knowledge in `wiki/`; workflow mechanics in skill files.
+- When creating, migrating, or moving wiki notes, use the relevant lifecycle skill's suggested wiki sections as canonical homes; do not create empty placeholder notes.
 - When updating guidance, prefer broadening or correcting existing guidance over adding narrow new rules; use specifics as examples or evidence unless the specificity is the actual invariant.
 - Do not run frontend builds unless the user explicitly asks.

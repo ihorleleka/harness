@@ -11,8 +11,8 @@ Goal: create a useful typed wiki starter set from the installed repository witho
 
 - `audit-only`: inspect the repo and propose notes without writing.
 - `minimal`: create only `index.md` and one high-level `overview.md`.
-- `standard`: create index, overview, architecture decisions, run/build/test runbook, primary components, and glossary when useful.
-- `detailed`: create standard notes plus subsystem references, data/API references, placement rules, operational runbooks, and known decisions that are directly supported by code.
+- `standard`: create index, overview, architecture decisions, coding standards, run/build/test runbook, primary components, and glossary when useful.
+- `detailed`: create standard notes plus subsystem references, data/API references, UI patterns, placement rules, operational runbooks, and known decisions that are directly supported by code.
 
 Default to `standard` when the user asks to initialize without choosing a mode. Ask only if mode choice materially affects expected output or repository size.
 
@@ -27,17 +27,26 @@ Default to `standard` when the user asks to initialize without choosing a mode. 
 7. Use `wiki_write` for complete notes when MCP tools are available. If not, write Markdown files under `wiki/` and tell the user MCP indexing was not invoked.
 8. Do not add generated packet files, task logs, implementation transcripts, or broad TODO inventories.
 
-## Starter Notes
+## Suggested Wiki Sections
 
 Use these as a menu, not a required checklist:
 
 - `index.md` (`reference`): map of active notes and retrieval hints.
 - `overview.md` (`reference`): repository purpose, main runtime, important entrypoints.
 - `architecture.md` (`decision`): major architectural choices that are evident from code.
+- `coding-standards.md` (`rule`): mandatory coding conventions, validation rules, testing rules, generated-code rules, or review constraints.
 - `development-runbook.md` (`runbook`): install, build, test, run, and common verification commands.
 - `components/<name>.md` (`reference`): only for primary modules or domains.
-- `rules/<topic>.md` (`rule`): only for mandatory placement or behavior rules.
+- `api.md` or `api/<area>.md` (`reference` or `rule`): public contracts, route conventions, request/response shapes, or API compatibility rules.
+- `data.md` or `data/<area>.md` (`reference` or `decision`): data model facts, persistence choices, migrations, indexing, import/export, or integration contracts.
+- `ui-patterns.md` (`rule` or `reference`): shared UI conventions, component placement, accessibility rules, or interaction patterns.
+- `operations/<topic>.md` (`runbook`): deployment, configuration, maintenance, observability, recovery, or other repeated operational tasks.
+- `rules/<topic>.md` (`rule`): focused mandatory placement or behavior rules that do not belong in a broader canonical rule note.
 - `glossary.md` (`glossary`): project terms, aliases, and acronyms.
+
+Create a suggested section only when repository evidence supports useful
+content. Do not create empty placeholder notes just because a section appears in
+this menu.
 
 ## Quality Bar
 
