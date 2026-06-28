@@ -6,13 +6,13 @@ const path = require("path");
 const PACKAGE_ROOT = path.resolve(__dirname, "..");
 const DEFAULT_AGENTS_DIR = ".agents";
 const MARKER_FILE = ".harness-install.json";
+let packageMetadata = null;
 
-const HARNESS_PAYLOAD = [
-  "README.md",
-  "run-wiki-manager-mcp.js",
-  "update-harness.cmd",
-  "update-harness.sh",
-  "skills",
+const LEGACY_SKILL_DIRS = [
+  "initialize-wiki",
+  "migrate-wiki",
+  "retrieve-knowledge",
+  "wiki-maintenance",
 ];
 
 function printUsage() {
@@ -114,6 +114,26 @@ function copyPath(source, target) {
   }
 }
 
+function copyManagedSkills(agentsRoot) {
+  const sourceSkillsRoot = path.join(PACKAGE_ROOT, "templates", "root", ".agents", "skills");
+  const targetSkillsRoot = path.join(agentsRoot, "skills");
+  ensureDir(targetSkillsRoot);
+
+  for (const entry of fs.readdirSync(sourceSkillsRoot, { withFileTypes: true })) {
+    const sourcePath = path.join(sourceSkillsRoot, entry.name);
+    const targetPath = path.join(targetSkillsRoot, entry.name);
+    copyPath(sourcePath, targetPath);
+  }
+}
+
+function copyManagedAgentFiles(agentsRoot) {
+  const sourceAgentsRoot = path.join(PACKAGE_ROOT, "templates", "root", ".agents");
+  for (const entry of fs.readdirSync(sourceAgentsRoot, { withFileTypes: true })) {
+    if (entry.isDirectory()) continue;
+    copyPath(path.join(sourceAgentsRoot, entry.name), path.join(agentsRoot, entry.name));
+  }
+}
+
 function hasHarnessMarker(agentsRoot) {
   return fs.existsSync(path.join(agentsRoot, MARKER_FILE));
 }
@@ -123,9 +143,23 @@ function isEmptyDirectory(dir) {
   return fs.readdirSync(dir).length === 0;
 }
 
+function readPackageMetadata() {
+  if (packageMetadata !== null) return packageMetadata;
+  const manifestPath = path.join(PACKAGE_ROOT, "package.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  packageMetadata = {
+    name: manifest.name,
+    version: manifest.version,
+  };
+  return packageMetadata;
+}
+
 function writeMarker(agentsRoot, options) {
+  const metadata = readPackageMetadata();
   const marker = {
     package: "github:ihorleleka/harness",
+    packageName: metadata.name,
+    version: metadata.version,
     installedAt: new Date().toISOString(),
     agentsDir: options.agentsDir,
   };
@@ -134,6 +168,18 @@ function writeMarker(agentsRoot, options) {
     `${JSON.stringify(marker, null, 2)}\n`,
     "utf8"
   );
+}
+
+function removeLegacySkillDirs(agentsRoot) {
+  const skillsRoot = path.join(agentsRoot, "skills");
+  const removed = [];
+  for (const skillName of LEGACY_SKILL_DIRS) {
+    const skillPath = path.join(skillsRoot, skillName);
+    if (!fs.existsSync(skillPath)) continue;
+    removePath(skillPath);
+    removed.push(path.relative(agentsRoot, skillPath));
+  }
+  return removed;
 }
 
 function copyHarnessPayload(agentsRoot, options) {
@@ -146,10 +192,12 @@ function copyHarnessPayload(agentsRoot, options) {
   }
 
   ensureDir(agentsRoot);
-  for (const item of HARNESS_PAYLOAD) {
-    copyPath(path.join(PACKAGE_ROOT, item), path.join(agentsRoot, item));
-  }
+  const removedLegacySkills = removeLegacySkillDirs(agentsRoot);
+  copyManagedAgentFiles(agentsRoot);
+  copyManagedSkills(agentsRoot);
+  removedLegacySkills.push(...removeLegacySkillDirs(agentsRoot));
   writeMarker(agentsRoot, options);
+  return removedLegacySkills;
 }
 
 function rewriteAgentsDir(content, agentsDir) {
@@ -159,53 +207,60 @@ function rewriteAgentsDir(content, agentsDir) {
 }
 
 function copyRootPayload(targetRoot, options) {
-  if (options.skipRoot) return [];
+  if (options.skipRoot) return { copied: [], skipped: [] };
 
-  const copied = [];
-  const sourceRoot = path.join(PACKAGE_ROOT, "expand-to-root");
+  const result = { copied: [], skipped: [] };
+  const sourceRoot = path.join(PACKAGE_ROOT, "templates", "root");
   const entries = fs.readdirSync(sourceRoot, { withFileTypes: true });
 
   for (const entry of entries) {
+    if (entry.name === ".agents") {
+      continue;
+    }
     const sourcePath = path.join(sourceRoot, entry.name);
     const targetPath = path.join(targetRoot, entry.name);
 
     if (entry.isDirectory()) {
-      copied.push(...copyDirectoryWithRewrite(sourcePath, targetPath, options));
+      copyDirectoryWithRewrite(sourcePath, targetPath, options, result);
     } else if (entry.isFile()) {
       if (fs.existsSync(targetPath) && !options.force) {
-        console.warn(`Skipped existing root asset: ${path.relative(targetRoot, targetPath)}`);
+        recordSkippedRootAsset(targetRoot, targetPath, result);
         continue;
       }
       const content = fs.readFileSync(sourcePath, "utf8");
       ensureDir(path.dirname(targetPath));
       fs.writeFileSync(targetPath, rewriteAgentsDir(content, options.agentsDir), "utf8");
-      copied.push(path.relative(targetRoot, targetPath));
+      result.copied.push(path.relative(targetRoot, targetPath));
     }
   }
 
-  return copied;
+  return result;
 }
 
-function copyDirectoryWithRewrite(source, target, options) {
-  const copied = [];
+function recordSkippedRootAsset(targetRoot, targetPath, result) {
+  const relativePath = path.relative(targetRoot, targetPath);
+  result.skipped.push(relativePath);
+  console.warn(`Skipped existing root asset: ${relativePath}`);
+}
+
+function copyDirectoryWithRewrite(source, target, options, result) {
   ensureDir(target);
   for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
     const sourcePath = path.join(source, entry.name);
     const targetPath = path.join(target, entry.name);
     if (entry.isDirectory()) {
-      copied.push(...copyDirectoryWithRewrite(sourcePath, targetPath, options));
+      copyDirectoryWithRewrite(sourcePath, targetPath, options, result);
     } else if (entry.isFile()) {
       if (fs.existsSync(targetPath) && !options.force) {
-        console.warn(`Skipped existing root asset: ${path.relative(options.targetRoot, targetPath)}`);
+        recordSkippedRootAsset(options.targetRoot, targetPath, result);
         continue;
       }
       const content = fs.readFileSync(sourcePath, "utf8");
       ensureDir(path.dirname(targetPath));
       fs.writeFileSync(targetPath, rewriteAgentsDir(content, options.agentsDir), "utf8");
-      copied.push(path.relative(options.targetRoot, targetPath));
+      result.copied.push(path.relative(options.targetRoot, targetPath));
     }
   }
-  return copied;
 }
 
 function run(options) {
@@ -225,14 +280,25 @@ function run(options) {
   options.targetRoot = targetRoot;
 
   const agentsRoot = path.join(targetRoot, options.agentsDir);
-  copyHarnessPayload(agentsRoot, options);
+  const removedLegacySkills = copyHarnessPayload(agentsRoot, options);
   const rootAssets = copyRootPayload(targetRoot, options);
 
   console.log(`${options.command === "install" ? "Installed" : "Updated"} harness in ${agentsRoot}`);
-  if (rootAssets.length > 0) {
-    console.log(`Copied root assets: ${rootAssets.join(", ")}`);
+  if (removedLegacySkills.length > 0) {
+    console.log(`Removed legacy skills: ${removedLegacySkills.join(", ")}`);
   }
-  if (rootAssets.length === 0 && !options.skipRoot) {
+  if (rootAssets.copied.length > 0) {
+    console.log(`Copied root assets: ${rootAssets.copied.join(", ")}`);
+  }
+  if (rootAssets.skipped.length > 0) {
+    console.warn(
+      `Skipped ${rootAssets.skipped.length} existing root asset(s) because --force was not set.`
+    );
+    console.warn(
+      "Root-level agent policy and editor MCP configuration may now differ from the managed harness template; re-run with --force to refresh committed root assets."
+    );
+  }
+  if (rootAssets.copied.length === 0 && rootAssets.skipped.length === 0 && !options.skipRoot) {
     console.log("No root assets copied; existing files were left in place.");
   }
 }

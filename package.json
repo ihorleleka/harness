@@ -5,13 +5,14 @@
   "bin": {
     "harness": "bin/harness.js"
   },
+  "scripts": {
+    "test": "npm run verify",
+    "verify": "node scripts/verify.js"
+  },
   "files": [
     "bin/",
-    "expand-to-root/",
-    "skills/",
-    "run-wiki-manager-mcp.js",
-    "update-harness.cmd",
-    "update-harness.sh",
+    "scripts/",
+    "templates/",
     "README.md"
   ],
   "license": "UNLICENSED",

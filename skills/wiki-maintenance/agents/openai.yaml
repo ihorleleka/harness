@@ -1,4 +1,0 @@
-interface:
-  display_name: "Wiki Maintenance"
-  short_description: "Enrich or optimize typed wiki notes into decision-ready packet sources"
-  default_prompt: "Use $wiki-maintenance to classify notes by kind, update complete wiki notes with the right typed sections, and keep packets short, generalized, and retrieval-ready."

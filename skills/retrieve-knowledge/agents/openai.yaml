@@ -1,4 +1,0 @@
-interface:
-  display_name: "Retrieve Knowledge"
-  short_description: "Packet-first typed wiki retrieval before implementation"
-  default_prompt: "Use $retrieve-knowledge to fetch typed wiki context packets before implementation. For concrete tasks with cross-cutting risk, run one guardrail query; for broad tasks, run the bounded orientation pass first. Rely on current packet guidance before recomputing architecture from code, and keep evidence checkpoints compact."

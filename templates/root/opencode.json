@@ -4,7 +4,7 @@
     "wiki-manager": {
       "type": "local",
       "enabled": true,
-      "command": ["node", ".agents/run-wiki-manager-mcp.js"]
+      "command": ["node", ".agents/run-wiki-manager.mcp.js"]
     }
   },
   "instructions": [

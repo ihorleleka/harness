@@ -1,6 +1,6 @@
 [mcp_servers.wiki-manager]
 command = "node"
-args = [".agents/run-wiki-manager-mcp.js"]
+args = [".agents/run-wiki-manager.mcp.js"]
 
 [mcp_servers.wiki-manager.tools.wiki_search]
 approval_mode = "approve"

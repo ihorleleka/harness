@@ -3,7 +3,7 @@
 		"wiki-manager": {
 			"command": "node",
 			"args": [
-				".agents/run-wiki-manager-mcp.js"
+				".agents/run-wiki-manager.mcp.js"
 			]
 		}
 	}
