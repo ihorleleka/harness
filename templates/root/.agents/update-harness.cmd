@@ -3,4 +3,5 @@ setlocal
 
 if "%HARNESS_PACKAGE%"=="" set "HARNESS_PACKAGE=github:ihorleleka/harness"
 
-npx %HARNESS_PACKAGE% update "%~dp0.." %*
+call npx "%HARNESS_PACKAGE%" update "%~dp0.." %*
+exit /b %ERRORLEVEL%

@@ -72,6 +72,12 @@ The installer supports a custom direct-child runner directory:
 npx github:ihorleleka/harness install . --agents-dir harness-agent --force
 ```
 
+Use a portable single directory name for `--agents-dir`: no slashes,
+backslashes, drive prefixes, Windows-reserved names, shell metacharacters, or
+trailing dots/spaces. The runner directory must be a direct child of the
+consumer repository on Windows, macOS, and Linux because the runner resolves its
+parent directory as the project root.
+
 Each install writes `.harness-install.json` inside the runner directory with the
 package name, package version, install timestamp, and selected runner directory.
 
@@ -321,7 +327,7 @@ npm run verify
 
 This installs the template into scratch repositories, checks generated MCP
 runner references, verifies install marker metadata, checks custom
-`--agents-dir` rewriting, and runs `npm pack --dry-run`.
+`--agents-dir` rewriting and validation, and runs `npm pack --dry-run`.
 
 ## Publishing
 

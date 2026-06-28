@@ -66,16 +66,35 @@ function parseArgs(argv) {
 }
 
 function ensureDirectChild(relativePath) {
-  const normalized = path.normalize(relativePath);
-  if (path.isAbsolute(normalized) || normalized.startsWith("..") || normalized.includes(`..${path.sep}`)) {
-    throw new Error(`agents dir must be a relative path inside the target repo: ${relativePath}`);
+  const raw = String(relativePath).trim();
+  if (!raw) {
+    throw new Error("--agents-dir requires a value");
   }
-  if (normalized.split(/[\\/]+/).length !== 1) {
+
+  const normalized = path.normalize(raw);
+  const portableNormalized = normalized.replace(/\\/g, "/");
+  const hasRoot =
+    path.isAbsolute(raw) || path.win32.isAbsolute(raw) || path.posix.isAbsolute(raw);
+  const hasSeparator = /[\\/]/.test(raw);
+  const hasInvalidWindowsNameChar = /[<>:"|?*\x00-\x1F]/.test(raw);
+  const isReservedWindowsName = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i.test(raw);
+  const hasInvalidWindowsEnding = /[. ]$/.test(raw);
+
+  if (
+    hasRoot ||
+    hasSeparator ||
+    hasInvalidWindowsNameChar ||
+    isReservedWindowsName ||
+    hasInvalidWindowsEnding ||
+    portableNormalized === "." ||
+    portableNormalized === ".."
+  ) {
     throw new Error(
-      `agents dir must be a direct child of the target repo because the runner resolves its parent as project root: ${relativePath}`
+      `agents dir must be a portable direct-child directory name inside the target repo: ${relativePath}`
     );
   }
-  return normalized;
+
+  return portableNormalized;
 }
 
 function ensureDir(dir) {

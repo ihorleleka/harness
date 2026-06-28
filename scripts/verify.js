@@ -40,6 +40,25 @@ function run(command, args, options = {}) {
   return result;
 }
 
+function expectFailure(command, args, expectedMessage) {
+  const result = spawnSync(command, args, {
+    cwd: ROOT,
+    encoding: "utf8",
+    stdio: "pipe",
+    windowsHide: true,
+  });
+
+  if (result.status === 0) {
+    fail(`${command} ${args.join(" ")} succeeded unexpectedly`);
+  }
+
+  const output = `${result.stdout || ""}${result.stderr || ""}`;
+  assert(
+    output.includes(expectedMessage),
+    `${command} ${args.join(" ")} failed without expected message: ${expectedMessage}`
+  );
+}
+
 function runNpm(args) {
   const npmCache = path.join(ARTIFACTS_ROOT, ".npm-cache");
   fs.mkdirSync(npmCache, { recursive: true });
@@ -124,6 +143,13 @@ function main() {
   prepareScratch(DEFAULT_SMOKE_ROOT);
   run(process.execPath, [path.join(ROOT, "bin", "harness.js"), "install", DEFAULT_SMOKE_ROOT, "--force"]);
   assertInstall(DEFAULT_SMOKE_ROOT, ".agents");
+  for (const invalidAgentsDir of [".", "..", "nested/agents", "nested\\agents", "C:agents", "CON", "agents."]) {
+    expectFailure(
+      process.execPath,
+      [path.join(ROOT, "bin", "harness.js"), "install", DEFAULT_SMOKE_ROOT, "--agents-dir", invalidAgentsDir],
+      "agents dir must be a portable direct-child directory name"
+    );
+  }
   const updateWithoutForce = run(process.execPath, [
     path.join(ROOT, "bin", "harness.js"),
     "update",
