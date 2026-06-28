@@ -7,3 +7,9 @@ approval_mode = "approve"
 
 [mcp_servers.wiki-manager.tools.wiki_read]
 approval_mode = "approve"
+
+[mcp_servers.wiki-manager.tools.wiki_schema_report]
+approval_mode = "approve"
+
+[mcp_servers.wiki-manager.tools.wiki_write]
+approval_mode = "approve"
