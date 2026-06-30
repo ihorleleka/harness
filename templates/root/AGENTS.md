@@ -1,72 +1,80 @@
 # Agents
 
-## Skill routing
+## Knowledge Governance
 
-| trigger | skill |
-|---|---|
-| non-trivial implementation, debugging, review, planning, or repo analysis | `$wiki` retrieve path |
-| delegated/sub-agent exploration, repository search, or codebase orientation | `$wiki` retrieve path |
-| empty/missing wiki or first-time wiki setup | `$wiki` initialize path |
-| existing wiki schema upgrade or typed-note migration | `$wiki` migrate path |
-| wiki gap, stale note, or conflicting guidance found | `$wiki` maintain/enrich path |
-| retrieval quality, structure audit, or schema report | `$wiki` audit or maintain/optimize path |
+This repository uses `$wiki` as the governed project knowledge workflow. Use it for packet-first retrieval, wiki initialization, typed-note migration, note maintenance, retrieval optimization, and schema or trust audits.
 
-The `$wiki` skill is the workflow source of truth. `AGENTS.md` owns durable repository policy; skills own retrieval/authoring workflow mechanics. Do not duplicate procedures here.
+Keep responsibilities separated:
 
-Use `$wiki` for bootstrapping new wiki content, broad schema conversion, normal ongoing note enrichment, retrieval optimization, and packet-first retrieval.
+- `AGENTS.md` defines durable repository policy for agents.
+- `.agents/skills/wiki/SKILL.md` defines workflow mechanics for wiki retrieval and authoring.
+- `wiki/` contains project, product, architecture, domain, and operational knowledge.
 
-## Wiki gate
+Keep detailed workflow instructions in the `$wiki` skill. If the wiki and code disagree, verify the implementation and update the wiki only when the write-back criteria below are met.
 
-Before non-trivial code edits, reviews, plans, or repository analysis, run `$wiki` retrieval. Retrieve the direct task context plus any likely governing guidance that could constrain the work, such as relevant conventions, decisions, boundaries, contracts, quality expectations, or operational constraints. Keep this relevance-based: query what might matter for the task instead of loading broad wiki areas by default. Prefer current compiled packets over full notes. If code contradicts wiki guidance, verify code reality and use the `$wiki` maintain path only when the durable write-back threshold below is met.
+## Retrieval Gate
 
-For delegated agents and sub-agents, treat exploration and repository search as wiki-gated unless the request is a tiny literal lookup with an already-known file or symbol. Start with narrow packet retrieval to identify likely areas, terms, constraints, and reusable guidance; then inspect the repository normally. Report code reality over stale wiki guidance, and mention stale or missing wiki context compactly.
+Before non-trivial implementation, debugging, review, planning, repository analysis, codebase orientation, or delegated exploration, run `$wiki` retrieval. Retrieve the direct task context and any relevant governing guidance: architecture decisions, boundaries, contracts, quality attributes, placement rules, operational constraints, or reusable patterns.
 
-If wiki retrieval misses, say that plainly instead of treating guesses as wiki-backed guidance. If the wiki appears missing, empty, stale, broken, or untrusted, route through the `$wiki` initialize or audit path. After wiki writes, perform the smallest useful verification, such as reading/searching the touched note or checking schema health for migration/audit work.
+Keep retrieval scoped to the task. Prefer compiled packets over full notes. Load full notes only when packet results are incomplete, conflicting, stale, security-sensitive, contract-sensitive, or decision-changing.
 
-Ask the user only when missing information changes the target, scope, risk, or durable meaning of a wiki update. Otherwise make a bounded assumption, state it if useful, and continue. Keep wiki-backed facts, code-verified facts, and inference distinct when the distinction matters.
+If retrieval returns no useful guidance, state the gap plainly. Continue with code inspection when appropriate, but keep wiki-backed facts, code-verified facts, and inference distinct when the distinction affects the outcome.
 
-## Wiki note taxonomy
+Ask the user only when missing information changes the target, scope, public behavior, risk profile, or durable meaning of a wiki update. Otherwise proceed with a bounded assumption and state it when material.
 
-Wiki notes must declare `kind:` in frontmatter. Use:
+## Note Taxonomy
+
+Every wiki note must declare `kind:` in frontmatter:
 
 - `rule` for mandatory durable behavior.
-- `decision` for architecture, product, or implementation choices.
-- `reference` for durable facts, concepts, API shapes, and domain context that are not rules.
-- `runbook` for repeatable operational or maintenance procedures.
-- `glossary` for names, terms, aliases, and vocabulary.
+- `decision` for architecture, product, or implementation decisions.
+- `reference` for durable facts, domain concepts, API shapes, capability context, and other non-mandatory knowledge.
+- `runbook` for repeatable operational, development, or maintenance procedures.
+- `glossary` for project vocabulary, aliases, acronyms, and naming conventions.
 
-Do not force notes into `Do` / `Do not` when they are really decisions or references. Keep todos out of wiki unless they describe durable debt, a known limitation, or deferred work that future sessions must account for.
+Keep references and decisions in their canonical sections rather than rule-style sections. Keep task logs, transient todos, and implementation transcripts out of the wiki unless they document durable debt, active constraints, or known limitations future agents must account for.
 
-## Delivery standard
+## Capability Specifications
 
-Every final response, handoff, or task-closing status must include a compact wiki status:
+Important delivery units should be reconstructable from the wiki: business capabilities, features, vertical slices, modules, components, bounded contexts, workflows, integrations, services, or the unit boundaries used by the team. Capture these as `kind: reference` capability specifications, typically under `features/<name>.md`, `components/<name>.md`, or `integrations/<name>.md`.
 
-- `Wiki: updated <note>` when a wiki note changed.
-- `Wiki: no update needed - <specific reason>` when no note changed.
+A capability specification should provide a reconstruction-ready overview of:
 
-Use concrete reasons such as "one-off bugfix," "cosmetic-only change," "no durable guidance changed," or "retrieval only." This is an accountability check, not a quota. Do not create or touch wiki notes just to make the status non-empty, and do not use a vague reason when the work produced reusable project guidance that meets the write-back threshold.
+- purpose, scope, and business value;
+- externally visible behavior, actors, workflows, business rules, and edge cases;
+- contracts, data/state model, integration points, and compatibility expectations;
+- architecture boundaries, ownership, dependencies, extension points, and prohibited coupling;
+- quality attributes such as security, authorization, privacy, accessibility, performance, reliability, observability, and auditability;
+- acceptance criteria, verification strategy, regression risks, and relevant test/runbook links;
+- current implementation anchors, evidence, assumptions, and open questions.
 
-## Communication budget
+Keep capability specifications portable. Lead with durable intent, behavior, constraints, and interfaces. Label project-specific implementation details as current bindings or evidence rather than universal requirements.
 
-Default to terse outputs:
+When planning, implementing, debugging, reviewing, or modifying a capability that lacks reusable reconstruction guidance, capture the smallest useful specification only when the relevant facts are already verified and low effort to document. If a proper specification requires more discovery, ask whether to run a focused documentation pass; name the target note, the areas to inspect, and the expected value. When documentation would materially expand the current task, continue the primary work and report the specification as a follow-up candidate.
 
-- During work, send progress updates only for long-running or blocked tasks; keep them to one sentence.
-- In final responses, prefer 1-3 short bullets or a short paragraph.
-- Do not include evidence logs, todo/done lists, test transcripts, or detailed reasoning unless requested, high-risk, or decision-changing.
-- For minor fixes, state the files changed and whether verification ran; omit broad summaries.
+## Write-Back Criteria
 
-## Wiki write-back threshold
+Use the `$wiki` maintain path only when the result would help future sessions make correct decisions: architecture rules, decisions, capability specifications, domain facts, repeated implementation patterns, placement conventions, contract behavior, operational constraints, stale or conflicting guidance, or cross-cutting behavior affecting data model, migrations, APIs, startup, import/export, or major user workflows.
 
-Use the `$wiki` maintain path only when future sessions would need the outcome as decision context: durable architecture rules, decisions, reference facts, repeated patterns/invariants, placement conventions, stale/missing/conflicting wiki guidance, or cross-cutting behavior affecting data model, migrations, APIs, startup, import/export, or major UI workflows.
+Update wiki notes for reusable project knowledge. Skip write-back for one-off task details, cosmetic changes, typo fixes, routine isolated bugs, or outcomes that future sessions would not need to retrieve by name.
 
-Do not update wiki notes for one-off details, cosmetic tweaks, routine CSS fixes, typo fixes, isolated bugs with no reusable guidance, or task-specific outcomes. When unsure, skip wiki write-back unless the conclusion would be useful to query later by name.
+Treat user corrections, durable preferences, and repeated error-to-fix lessons as write-back candidates only when they are project-relevant, reusable, and sufficiently verified. Ask before writing changes that alter policy, architecture, ownership, naming, public behavior, or product meaning.
 
-Treat useful user corrections, durable preferences, and repeated error->fix lessons as write-back candidates, but promote them only when they are project-relevant, reusable, and verified enough to guide future agents. Ask before writing changes that would alter policy, architecture, ownership, naming, or public behavior.
+After every wiki write, perform the smallest useful verification: read/search the touched note, run a schema report for migration/audit work, or run a representative search when improving retrieval.
 
-## Core rules
+## Delivery Standard
 
-- Follow architecture and placement rules from the relevant wiki notes.
-- Prefer targeted changes within task scope; do not opportunistically modernize unrelated areas.
-- Route changes by purpose: repository-wide durable rules in `AGENTS.md`; living domain knowledge in `wiki/`; workflow mechanics in skill files.
-- When creating, migrating, or moving wiki notes, use the relevant lifecycle skill's suggested wiki sections as canonical homes; do not create empty placeholder notes.
-- When updating guidance, prefer broadening or correcting existing guidance over adding narrow new rules; use specifics as examples or evidence unless the specificity is the actual invariant.
+Report wiki activity only when it changes the user-visible outcome:
+
+- Name wiki notes that were created, updated, migrated, or audited.
+- Mention retrieved guidance only when it materially shaped the answer, constrained the work, or exposed a durable gap.
+- Mention durable follow-up candidates when missing guidance should be captured later.
+
+## Operating Rules
+
+- Follow architecture, placement, quality, and contract guidance from relevant wiki notes.
+- Prefer targeted changes within task scope; leave unrelated modernization for explicit follow-up work.
+- Use canonical wiki homes from the `$wiki` skill when creating, migrating, or moving notes.
+- Prefer broadening or correcting existing guidance over creating narrow duplicate notes.
+- Use examples as evidence unless the example itself is the invariant.
+- Keep responses concise by default: changed files, verification, and decision-changing context.

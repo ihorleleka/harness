@@ -126,6 +126,13 @@ function assertReferencedJsTargetsExist(targetRoot, agentsDir) {
   }
 }
 
+function assertDeliveredSurface(targetRoot, agentsDir) {
+  const consumerAgentsPath = path.join(targetRoot, "AGENTS.md");
+  const wikiSkillPath = path.join(targetRoot, agentsDir, "skills", "wiki", "SKILL.md");
+  assert(fs.existsSync(consumerAgentsPath), "consumer AGENTS.md missing");
+  assert(fs.existsSync(wikiSkillPath), "managed wiki skill missing");
+}
+
 function assertInstall(targetRoot, agentsDir) {
   const packageJson = readJson(path.join(ROOT, "package.json"));
   const marker = readJson(path.join(targetRoot, agentsDir, ".harness-install.json"));
@@ -135,14 +142,17 @@ function assertInstall(targetRoot, agentsDir) {
   assert(marker.version === packageJson.version, "install marker version does not match package.json");
   assert(marker.agentsDir === agentsDir, "install marker agentsDir does not match install option");
 
-  assert(fs.existsSync(path.join(targetRoot, agentsDir, "skills", "wiki", "SKILL.md")), "managed wiki skill missing");
   assertReferencedJsTargetsExist(targetRoot, agentsDir);
+  assertDeliveredSurface(targetRoot, agentsDir);
 }
 
 function main() {
   prepareScratch(DEFAULT_SMOKE_ROOT);
   run(process.execPath, [path.join(ROOT, "bin", "harness.js"), "install", DEFAULT_SMOKE_ROOT, "--force"]);
   assertInstall(DEFAULT_SMOKE_ROOT, ".agents");
+  const defaultStatus = run(process.execPath, [path.join(ROOT, "bin", "harness.js"), "status", DEFAULT_SMOKE_ROOT]);
+  assert(defaultStatus.stdout.includes("Agents dir: .agents"), "status did not report default agents dir");
+  assert(defaultStatus.stdout.includes("Install marker: present"), "status did not report install marker");
   for (const invalidAgentsDir of [".", "..", "nested/agents", "nested\\agents", "C:agents", "CON", "agents."]) {
     expectFailure(
       process.execPath,
@@ -170,6 +180,8 @@ function main() {
     "--force",
   ]);
   assertInstall(CUSTOM_SMOKE_ROOT, "harness-agent");
+  const customStatus = run(process.execPath, [path.join(ROOT, "bin", "harness.js"), "status", CUSTOM_SMOKE_ROOT]);
+  assert(customStatus.stdout.includes("Agents dir: harness-agent"), "status did not discover custom agents dir");
 
   runNpm(["pack", "--dry-run"]);
   console.log("verify: ok");

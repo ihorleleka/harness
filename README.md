@@ -81,6 +81,20 @@ parent directory as the project root.
 Each install writes `.harness-install.json` inside the runner directory with the
 package name, package version, install timestamp, and selected runner directory.
 
+## Expected Impact
+
+The main benefit is continuity: agents can retrieve project-specific decisions,
+contracts, placement rules, and capability context before repeating broad code
+orientation. On mature projects with maintained notes, a practical expectation
+is roughly a 20% token reduction for average implementation work, with larger
+gains on repeated or cross-cutting work where the same capability, integration,
+or architecture rules are revisited across sessions.
+
+Empty or lightly maintained wikis may cost extra tokens at first because agents
+need to initialize, verify, and write useful notes. The payoff increases as the
+wiki captures durable guidance that future sessions would otherwise rediscover
+from source code.
+
 ## Update Behavior
 
 Install and update preserve user-added skill directories under
@@ -114,6 +128,32 @@ git add .agents AGENTS.md opencode.json .claude .codex .vscode wiki
 git commit -m "chore: update wiki harness"
 ```
 
+## Diagnostics
+
+Use `status` to inspect an installed harness without changing files:
+
+```bash
+npx github:ihorleleka/harness status .
+```
+
+It reports the detected runner directory, install marker metadata, managed
+runner and skill presence, `wiki/` presence, root assets that are missing or
+changed from the current template, and MCP config references to the local
+runner. If the default `.agents` directory is not installed and exactly one
+harness marker exists in another direct-child directory, `status` reports that
+custom runner directory automatically.
+
+Use `doctor` when setup appears broken:
+
+```bash
+npx github:ihorleleka/harness doctor .
+```
+
+`doctor` runs the same local install checks plus prerequisite checks for Node.js
+and the Docker CLI. It does not start containers, pull images, or contact the
+network. A failed check exits non-zero so scripts can treat it as an unhealthy
+local harness install.
+
 ## Agent Workflow
 
 The installed instructions are built around packet-first retrieval through the
@@ -141,6 +181,35 @@ a tiny literal lookup with an already-known file or symbol. Wiki packets guide
 where to search; code inspection remains the source of truth when the wiki is
 stale or incomplete.
 
+## Capability Specifications
+
+The installed wiki guidance supports capability specifications: structured
+`kind: reference` notes intended to let a future agent reconstruct a complete
+business capability, feature, vertical slice, component, module, bounded
+context, workflow, integration, service, or other delivery unit within the
+boundaries of the current project.
+
+These notes are meant to combine the important perspectives into one overview:
+purpose, visible behavior, business rules, contracts, state and data model,
+architecture boundaries, quality attributes, acceptance criteria, verification
+approach, current implementation anchors, and open questions. They should stay
+portable where possible, describing durable behavior and constraints before
+project-specific implementation details.
+
+Preferred homes are:
+
+- `features/<name>.md` for user-facing capabilities, workflows, and vertical slices
+- `components/<name>.md` for modules, bounded contexts, services, libraries, domains, and reusable components
+- `integrations/<name>.md` for external systems, protocol contracts, sync flows, and adapter boundaries
+
+When planning, implementing, debugging, reviewing, or modifying a capability
+that lacks reusable reconstruction guidance, agents should capture it when the
+verified facts are already available with low additional effort. If a proper
+specification requires more discovery, the agent should ask whether to run a
+focused documentation pass, name the target note and areas to inspect, and
+otherwise report the specification as a follow-up candidate without blocking the
+current task.
+
 ## Wiki Skill
 
 Lifecycle work uses the routed `$wiki` skill:
@@ -159,8 +228,8 @@ The `wiki-manager` MCP surface used by the skill is:
 - `wiki_schema_report` - audits typed note schema, packet gaps, stale verification, duplicate IDs, and broken wiki links
 - `wiki_write` - writes a complete Markdown note and refreshes the index
 
-Packets are derived from normal Markdown notes by the MCP server. Agents do not
-author generated packet files.
+Packets are derived from normal Markdown notes by the MCP server. Agents author
+typed Markdown notes rather than generated packet files.
 
 ## Typed Notes
 
@@ -169,7 +238,7 @@ Wiki notes use YAML frontmatter and one of five durable knowledge kinds:
 ```yaml
 ---
 id: stable-note-id
-kind: rule
+kind: reference
 scope: project-specific
 last_verified: YYYY-MM-DD
 status: active
@@ -181,10 +250,10 @@ applies_to:
 Supported `kind` values:
 
 - `rule` - mandatory durable behavior agents should follow
-- `decision` - architecture, product, or implementation choices
-- `reference` - durable facts, concepts, API shapes, or domain context that are not rules
-- `runbook` - repeatable operational or maintenance procedures
-- `glossary` - names, terms, aliases, and vocabulary
+- `decision` - architecture, product, or implementation decisions and their consequences
+- `reference` - durable facts, domain context, API shapes, capability specifications, and other non-mandatory knowledge
+- `runbook` - repeatable development, operational, recovery, or maintenance procedures
+- `glossary` - project vocabulary, aliases, acronyms, and naming conventions
 
 Each kind has a compact note shape:
 
@@ -196,9 +265,9 @@ Each kind has a compact note shape:
 | `runbook` | `Use this when`, `Steps`, `Do not`, `Evidence`, `Retrieval hints` |
 | `glossary` | `Terms`, `Aliases`, `Retrieval hints` |
 
-Do not force notes into `Do` / `Do not` when they are decisions or references.
-Keep todos out of wiki unless they represent durable debt, known limitations, or
-deferred work future sessions must account for.
+Keep decisions and references in their canonical sections rather than rule-style
+sections. Keep todos out of wiki unless they represent durable debt, known
+limitations, or deferred work future sessions must account for.
 
 Suggested wiki sections are a menu, not a checklist. The `$wiki` initialize path
 uses them when bootstrapping, the migrate path uses them as consolidation
@@ -206,20 +275,23 @@ targets, and the maintain path uses them as canonical homes when a durable gap
 needs a new note:
 
 - `index.md` (`reference`) - map of active notes and retrieval hints
-- `overview.md` (`reference`) - repository purpose, runtime, and entrypoints
-- `architecture.md` (`decision`) - major architecture, product, or implementation choices
+- `overview.md` (`reference`) - repository purpose, runtime, entrypoints, and major dependencies
+- `architecture.md` (`decision`) - major architecture, product, or implementation decisions
 - `coding-standards.md` (`rule`) - mandatory coding, validation, testing, generated-code, or review rules
-- `development-runbook.md` (`runbook`) - install, build, test, run, and verification commands
-- `components/<name>.md` (`reference`) - primary modules, bounded contexts, or domains
-- `api.md` or `api/<area>.md` (`reference` or `rule`) - public contracts, routes, request/response shapes, or compatibility rules
+- `development-runbook.md` (`runbook`) - install, build, test, run, and verification procedures
+- `features/<name>.md` (`reference`) - capability specifications for user-facing capabilities, workflows, or vertical slices
+- `components/<name>.md` (`reference`) - capability specifications or references for primary modules, bounded contexts, services, libraries, domains, or reusable components
+- `integrations/<name>.md` (`reference` or `decision`) - external systems, protocol contracts, sync flows, and adapter boundaries
+- `api.md` or `api/<area>.md` (`reference` or `rule`) - public/internal contracts, routes, messages, request/response shapes, and compatibility rules
 - `data.md` or `data/<area>.md` (`reference` or `decision`) - data model facts, persistence choices, migrations, indexing, import/export, or integration contracts
-- `ui-patterns.md` (`rule` or `reference`) - shared UI conventions, component placement, accessibility, or interaction patterns
-- `operations/<topic>.md` (`runbook`) - deployment, configuration, maintenance, observability, recovery, or repeated operational tasks
-- `rules/<topic>.md` (`rule`) - focused mandatory placement or behavior rules
+- `ui-patterns.md` (`rule` or `reference`) - shared UI conventions, accessibility, interaction patterns, and component placement
+- `operations/<topic>.md` (`runbook`) - deployment, configuration, observability, maintenance, recovery, and repeated operational tasks
+- `rules/<topic>.md` (`rule`) - focused mandatory behavior, placement, or ownership rules
 - `glossary.md` (`glossary`) - project terms, aliases, acronyms, and naming vocabulary
 
 Create notes only when verified repository evidence supports useful content.
-Never create empty placeholders just because a section appears in the menu.
+Treat the section menu as available homes for useful notes, not as a required
+topic inventory.
 
 ## Write Policy
 
@@ -232,11 +304,11 @@ After wiki writes, agents should run the smallest useful verification: read or
 search the touched note, run `wiki_schema_report` for migration/audit work, or
 run a representative `wiki_search` when optimizing retrieval.
 
-When implementation reveals durable behavior, facts, or decisions missing from
-retrieved packets, agents should use the `$wiki` maintain path in the same
-session so future sessions receive that guidance as packet context. Use
-`kind: reference` or `kind: decision` for durable facts or choices that are not
-mandatory rules.
+When implementation reveals durable behavior, facts, capability specifications,
+or decisions missing from retrieved packets, agents should use the `$wiki`
+maintain path in the same session so future sessions receive that guidance as
+packet context. Use `kind: reference` or `kind: decision` for durable facts or
+choices that are not mandatory rules.
 
 Useful user corrections, durable preferences, and repeated error-to-fix lessons
 may become write-back candidates when they are project-relevant and reusable.
@@ -326,8 +398,9 @@ npm run verify
 ```
 
 This installs the template into scratch repositories, checks generated MCP
-runner references, verifies install marker metadata, checks custom
-`--agents-dir` rewriting and validation, and runs `npm pack --dry-run`.
+runner references, verifies install marker metadata, checks `status` output for
+default and custom runner directories, checks custom `--agents-dir` rewriting
+and validation, and runs `npm pack --dry-run`.
 
 ## Publishing
 
