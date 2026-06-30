@@ -16,6 +16,8 @@ Keep detailed workflow instructions in the `$wiki` skill. If the wiki and code d
 
 Before non-trivial implementation, debugging, review, planning, repository analysis, codebase orientation, or delegated exploration, run `$wiki` retrieval. Retrieve the direct task context and any relevant governing guidance: architecture decisions, boundaries, contracts, quality attributes, placement rules, operational constraints, or reusable patterns.
 
+For delegated work, pass along or restate the retrieved governing guidance that constrains the subtask. Sub-agents should receive the same applicable rules, decisions, contracts, and open questions before narrowing into local file searches.
+
 Keep retrieval scoped to the task. Prefer compiled packets over full notes. Load full notes only when packet results are incomplete, conflicting, stale, security-sensitive, contract-sensitive, or decision-changing.
 
 If retrieval returns no useful guidance, state the gap plainly. Continue with code inspection when appropriate, but keep wiki-backed facts, code-verified facts, and inference distinct when the distinction affects the outcome.

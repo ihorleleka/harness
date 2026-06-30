@@ -83,17 +83,37 @@ package name, package version, install timestamp, and selected runner directory.
 
 ## Expected Impact
 
-The main benefit is continuity: agents can retrieve project-specific decisions,
-contracts, placement rules, and capability context before repeating broad code
-orientation. On mature projects with maintained notes, a practical expectation
-is roughly a 20% token reduction for average implementation work, with larger
-gains on repeated or cross-cutting work where the same capability, integration,
-or architecture rules are revisited across sessions.
+The main benefit is governed continuity: agents can retrieve project-specific
+decisions, contracts, placement rules, capability context, and runbooks before
+editing, reviewing, planning, or delegating work. That turns durable repository
+knowledge into an explicit retrieval gate instead of leaving each session to
+rediscover the same constraints from source code and prior conversations.
+
+Maintained wikis should improve:
+
+- durable rule enforcement for coding standards, placement rules, compatibility
+  constraints, and review expectations
+- cross-session continuity when multiple agents or editors work in the same
+  repository
+- faster orientation for repeated work on the same capability, integration,
+  component, or architectural boundary
+- traceability from guidance back to repository evidence, open questions, and
+  verification dates
+- more consistent write-back of newly discovered durable facts, decisions, and
+  capability specifications
+- safer delegation because sub-agents receive the same governing context before
+  narrowing into local file searches
+
+Token savings are a secondary but useful effect. On mature projects with
+maintained notes, a practical expectation is roughly a 20% token reduction for
+average implementation work, with larger gains on repeated or cross-cutting work
+where the same capability, integration, or architecture rules are revisited
+across sessions.
 
 Empty or lightly maintained wikis may cost extra tokens at first because agents
 need to initialize, verify, and write useful notes. The payoff increases as the
-wiki captures durable guidance that future sessions would otherwise rediscover
-from source code.
+wiki captures durable guidance that future sessions can retrieve directly and
+apply consistently.
 
 ## Update Behavior
 

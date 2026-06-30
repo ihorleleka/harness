@@ -144,7 +144,7 @@ Use these locations as a menu, not a checklist. Create notes only when verified 
 
 ## Retrieve
 
-Use for non-trivial implementation, debugging, review, planning, repository analysis, delegated exploration, repository search, wiki-backed Q&A, or broad orientation.
+Use for non-trivial implementation, debugging, review, planning, repository analysis, delegated exploration, sub-agent orientation, repository search, wiki-backed Q&A, or broad orientation.
 
 Workflow:
 
@@ -156,6 +156,7 @@ Workflow:
 6. Read full notes for conflicts, missing hard rules, security/auth, data migrations, infrastructure reliability, explicit exhaustive review, or packet summaries that lack necessary detail.
 7. Verify against code before relying on stale, low-confidence, or structurally incomplete guidance.
 8. State wiki gaps plainly and suggest a targeted update only when the gap is durable.
+9. For delegated work, carry forward the retrieved rules, decisions, contracts, and open questions that constrain the subtask.
 
 Orientation pass:
 
