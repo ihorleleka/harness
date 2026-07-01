@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository packages the local agent harness for `ihorleleka/Project-Rag-Wiki`. It does not own wiki content or the core indexing service. It owns the installer, generated repository assets, the managed `$wiki` skill, MCP/editor configuration templates, wrapper scripts, package documentation, and verification harness.
+This repository packages the local agent harness for a Docker-backed `wiki-manager` MCP server. It does not own wiki content or the core indexing service. It owns the installer, generated repository assets, the managed `$wiki` skill, MCP/editor configuration templates, wrapper scripts, package documentation, and verification harness.
 
 This `AGENTS.md` is for agents working on this harness repository only. It is not installed into consumer repositories. Consumer-facing agent policy lives at `templates/root/AGENTS.md`.
 
@@ -55,6 +55,7 @@ Treat `templates/root` as an installable product surface:
 - Keep workflow mechanics in the `$wiki` skill and durable consumer policy in `templates/root/AGENTS.md`.
 - Keep installed `.agents/README.md` short and consumer-facing.
 - Keep path examples portable where practical; include Windows and POSIX command variants when users need both.
+- Avoid absolute local paths in README examples, delivered templates, and wiki guidance. Consumer repositories may be cloned into different locations, so committed guidance should use repository-relative paths.
 - Do not create placeholder notes, broad topic inventories, or unimplemented wiki workflows in templates.
 
 When adding or renaming delivered files, update installer behavior, verification, README layout documentation, and package contents as needed.

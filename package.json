@@ -1,7 +1,7 @@
 {
   "name": "@ihorleleka/harness",
   "version": "0.1.0",
-  "description": "Installer and runner assets for Project-Rag-Wiki agent harness integration.",
+  "description": "Installer and runner assets for wiki-manager agent harness integration.",
   "bin": {
     "harness": "bin/harness.js"
   },

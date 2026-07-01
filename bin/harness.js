@@ -25,7 +25,7 @@ function printUsage() {
 
 Examples:
   npx github:ihorleleka/harness install .
-  npx github:ihorleleka/harness update C:\\Solutions\\my-project --force
+  npx github:ihorleleka/harness update . --force
   npx github:ihorleleka/harness status .
   npx github:ihorleleka/harness doctor .
   .agents\\update-harness.cmd

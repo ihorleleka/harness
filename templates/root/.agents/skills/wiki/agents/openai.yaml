@@ -1,4 +1,4 @@
 interface:
   display_name: "Wiki"
   short_description: "Packet-first wiki retrieval and maintenance"
-  default_prompt: "Use $wiki to route repository knowledge work: retrieve task context and likely governing guidance for implementation, review, exploration, searches, and sub-agent orientation; initialize or migrate typed notes; maintain durable guidance; and audit schema or retrieval quality."
+  default_prompt: "Use $wiki to route repository knowledge work: retrieve task context and likely governing guidance for implementation, review, exploration, non-trivial codebase searches, and sub-agent orientation; initialize or migrate typed notes; maintain durable guidance; and audit schema or retrieval quality."
