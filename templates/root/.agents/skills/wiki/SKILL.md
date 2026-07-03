@@ -40,6 +40,7 @@ Use native MCP tool calls when available: `wiki_search`, `wiki_read`, `wiki_list
 
 - **Traceability**: include repository-relative source paths, code symbols, tests, migrations, tickets, user confirmations, or other evidence for durable claims.
 - **Retrieval usefulness**: a useful note should be findable by likely future search terms and return a packet that can guide the next action without forcing a full-note read for routine use.
+- **Topic coverage**: write-back should cover each distinct durable topic discovered during the work, not only the note that happened to be retrieved first.
 - **Separation of sources**: distinguish wiki-backed facts, code-verified facts, and inference whenever the distinction affects the answer.
 - **Staleness handling**: use packet fields such as `last_verified`, `needs_verification`, `confidence`, and `gaps` to decide whether to trust, qualify, or verify guidance.
 - **Honest gaps**: if retrieval does not answer the question, say so. Continue with code inspection only when appropriate, and label inference as inference.
@@ -48,6 +49,26 @@ Use native MCP tool calls when available: `wiki_search`, `wiki_read`, `wiki_list
 - **Clarification discipline**: ask the user only when missing information changes target, scope, public behavior, risk, or durable wiki meaning. Otherwise proceed with a bounded assumption.
 - **Post-write verification**: after `wiki_write`, run the smallest useful verification: read/search the touched note, run `wiki_schema_report` for migration/audit work, or run a representative `wiki_search` when optimizing retrieval.
 - **Promotion judgment**: promote knowledge only when future agents would reasonably need it. If the finding is plausible but unverified, controversial, policy-changing, or mainly preference-based, present it as a candidate and ask before writing.
+
+## Note Scope And Size
+
+Write notes around one retrievable unit of knowledge. A unit may be a capability, component, contract, integration, decision, rule, runbook, glossary area, or cross-cutting concern with a stable name.
+
+Targets:
+
+- Most focused notes should stay under 150 lines or roughly 1,500 words.
+- Large capability specifications may reach 250 lines or roughly 2,500 words when the sections remain cohesive and independently useful.
+- Split or summarize before a note exceeds 300 lines, roughly 3,000 words, more than 8 top-level sections, or more than 30 evidence anchors.
+
+Split a note sooner when:
+
+- Multiple future searches would need unrelated parts of the same note.
+- Frontend behavior, backend behavior, API contracts, data/indexing, operations, or quality rules each have enough verified detail to stand alone.
+- A note mixes `rule`, `decision`, `reference`, and `runbook` material in a way that weakens the canonical shape.
+- Evidence anchors dominate the note. Keep the governing summary in the owner note and move detailed source inventories into focused child notes or evidence sections.
+- A packet from the note cannot answer a routine query without forcing a full-note read.
+
+Use a short parent note as a map when a topic needs several notes. Keep the parent responsible for the summary, boundaries, links, and retrieval hints; put detailed contracts, workflows, or implementation anchors in focused child notes.
 
 ## Typed Notes
 
@@ -150,6 +171,18 @@ Use these locations as a menu, not a checklist. Create notes only when verified 
 - `rules/<topic>.md` (`rule`): focused mandatory behavior, placement, or ownership rules.
 - `glossary.md` (`glossary`): terms, aliases, acronyms, and naming vocabulary.
 
+## Write-Back Planning
+
+Before writing after non-trivial implementation, debugging, review, or repository analysis, make a compact write-back plan from the facts already verified:
+
+1. List each distinct durable topic discovered: capability behavior, component boundary, request or invocation lifecycle, API/message contract, data or indexing model, frontend interaction, backend service behavior, operation/runbook, quality rule, or architecture decision.
+2. Map each topic to its canonical home. Prefer existing owner notes only when the topic belongs there and the note remains within the scope and size limits.
+3. Create a new focused note when no owner exists and the topic meets the quality floor. Do not collapse separable knowledge into a broad architecture note merely because it is related to the task.
+4. Update every affected owner note whose reusable guidance changed or became newly verified. It is valid for one task to update several notes when it touched several durable topics.
+5. If a candidate topic is useful but not verified enough, add it to `Open questions` in the nearest owner note or report it as a follow-up candidate instead of creating a thin note.
+
+Evidence paths in one note do not replace the need for owner notes. For example, a search architecture note may cite backend and frontend implementation files as evidence, but verified frontend filtering behavior, request lifecycle, indexing contracts, or API semantics should live in their own focused capability, component, API, data, or UI notes when they are reusable independently.
+
 ## Retrieve
 
 Use for non-trivial implementation, debugging, review, planning, repository analysis, delegated exploration, sub-agent orientation, codebase search, symbol or component discovery, wiki-backed Q&A, or broad orientation. Tiny literal lookups for an already-known file or symbol may skip retrieval.
@@ -216,10 +249,11 @@ Workflow:
 1. Inspect README, project files, build/test configuration, entrypoints, routes/modules, deployment files, and existing `wiki/`.
 2. If notes already exist, run `wiki_schema_report` when available and prefer Migrate unless the user wants additive starter notes.
 3. Choose a note plan. Prefer fewer authoritative notes over many thin notes.
-4. Write only verified facts. Put clear inferences in `Evidence` or skip them.
-5. Keep notes concise: decision-ready summary first, repository-relative source paths in `Evidence`, search terms in `Retrieval hints`.
-6. Include capability specifications only for units whose behavior is concrete enough to guide implementation or reconstruction.
-7. Write complete notes with `wiki_write` when available.
+4. Apply the note scope and size limits before writing. Use a parent map plus focused notes when the initial evidence clearly spans multiple retrievable units.
+5. Write only verified facts. Put clear inferences in `Evidence` or skip them.
+6. Keep notes concise: decision-ready summary first, repository-relative source paths in `Evidence`, search terms in `Retrieval hints`.
+7. Include capability specifications only for units whose behavior is concrete enough to guide implementation or reconstruction.
+8. Write complete notes with `wiki_write` when available.
 
 ## Migrate
 
@@ -244,11 +278,13 @@ Use when a durable wiki gap exists, existing guidance is stale or conflicting, o
 Shared rules:
 
 - Meet the `AGENTS.md` write-back criteria before writing.
-- Update an existing note unless no clear owner exists.
+- Build a write-back plan for the verified durable topics before editing notes.
+- Update an existing note when it is the clear owner and remains focused; create or split focused notes when no clear owner exists or the owner has grown too broad.
 - Choose the narrowest correct `kind`.
 - Generalize the invariant; put task-specific examples in `Evidence` unless the specificity is the invariant.
 - Set `last_verified` to today's date on every touched note.
 - Update index links when creating, moving, or renaming notes.
+- Apply the note scope and size limits during both new note creation and additive updates. Split before adding more detail to an oversized or mixed-concern note.
 - Preserve user corrections, durable preferences, and repeated error-to-fix lessons only when project-relevant, reusable, and verified enough.
 - When a routine bug exposes a reusable invariant, regression risk, contract behavior, or repeated fix pattern, capture that lesson without preserving the incident transcript.
 - Ask before writing changes that alter policy, architecture, ownership, naming, product meaning, or public behavior unless the user explicitly requested the write-back.
@@ -257,10 +293,10 @@ Shared rules:
 Optimization workflow:
 
 1. Run 2-3 representative baseline queries.
-2. Correct `kind`; split mixed concerns when one packet cannot answer cleanly.
+2. Correct `kind`; split mixed concerns or oversized notes when one packet cannot answer cleanly.
 3. Move decision-ready content near the top.
 4. Add likely search terms to headings or `Retrieval hints`.
-5. Remove stale/noisy content that no longer affects active work.
+5. Remove stale/noisy content that no longer affects active work, or move detailed material into focused child notes when it is still useful.
 6. Re-run baseline queries and check whether the intended note appears in the top results, whether the packet is decision-ready for routine use without a full-note read, whether stale or low-confidence packets are clearly marked, and whether common developer vocabulary maps to the note.
 7. Summarize the retrieval improvement in the response, not inside domain notes unless it changes the note's meaning.
 

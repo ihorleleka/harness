@@ -34,6 +34,8 @@ Use the typed-note taxonomy and canonical homes defined in the `$wiki` skill. Ev
 
 Keep references and decisions in their canonical sections rather than rule-style sections. Keep task logs, transient todos, and implementation transcripts out of the wiki unless they document durable debt, active constraints, or known limitations future agents must account for.
 
+Keep notes focused on one retrievable unit of knowledge. Prefer a parent map plus focused child notes when a topic spans distinct capability behavior, component boundaries, request lifecycle, API/message contracts, data or indexing, frontend interaction, backend service behavior, operations, quality rules, or architecture decisions. Split notes according to the size and scope thresholds in the `$wiki` skill before they become broad source inventories.
+
 ## Capability Specifications
 
 Important delivery units should be reconstructable from the wiki: business capabilities, features, vertical slices, modules, components, bounded contexts, workflows, integrations, services, or the unit boundaries used by the team. Capture these as extended `kind: reference` capability specifications in the homes defined by the `$wiki` skill.
@@ -47,6 +49,8 @@ When planning, implementing, debugging, reviewing, or modifying a capability tha
 Use the `$wiki` maintain path only when the result would help future sessions make correct decisions: architecture rules, decisions, capability specifications, domain facts, repeated implementation patterns, placement conventions, contract behavior, operational constraints, stale or conflicting guidance, or cross-cutting behavior affecting data model, migrations, APIs, startup, import/export, or major user workflows.
 
 Update wiki notes for reusable project knowledge. Skip write-back for one-off task details, cosmetic changes, typo fixes, routine isolated bugs, or outcomes that future sessions would not need to retrieve by name. Do capture a durable invariant, regression risk, contract behavior, or repeated fix pattern when a routine bug reveals one; skip the incident log and preserve the reusable lesson.
+
+For non-trivial work, consider every distinct durable topic discovered during investigation. Update every affected owner note when the evidence supports it. Do not use a single broad architecture note as the only write-back location when verified knowledge belongs in separate capability, component, API, data, UI, runbook, rule, or decision notes.
 
 Treat user corrections, durable preferences, and repeated error-to-fix lessons as write-back candidates only when they are project-relevant, reusable, and sufficiently verified. Ask before writing changes that alter policy, architecture, ownership, naming, public behavior, or product meaning.
 
@@ -64,6 +68,6 @@ Report wiki activity only when it changes the user-visible outcome:
 
 - Follow architecture, placement, quality, and contract guidance from relevant wiki notes.
 - Prefer targeted changes within task scope; leave unrelated modernization for explicit follow-up work.
-- Prefer broadening or correcting existing guidance over creating narrow duplicate notes.
+- Prefer correcting the existing owner note over creating narrow duplicate notes, but create or split focused notes when a distinct durable topic lacks a clear owner or the existing note has grown too broad.
 - Use examples as evidence unless the example itself is the invariant.
 - Keep responses concise by default: changed files, verification, and decision-changing context.

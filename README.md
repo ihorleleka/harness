@@ -15,6 +15,7 @@ future sessions should not rediscover.
 - editor MCP configuration for Codex, Claude, OpenCode, and VS Code
 - a routed `$wiki` skill for retrieval, initialization, migration, maintenance,
   and audit
+- write-back guidance for focused notes, multi-note updates, and note splitting
 - a committed `wiki/` folder owned by the consumer repository
 - update wrappers so committed harness files can be refreshed consistently
 
