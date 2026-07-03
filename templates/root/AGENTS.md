@@ -34,7 +34,7 @@ Use the typed-note taxonomy and canonical homes defined in the `$wiki` skill. Ev
 
 Keep references and decisions in their canonical sections rather than rule-style sections. Keep task logs, transient todos, and implementation transcripts out of the wiki unless they document durable debt, active constraints, or known limitations future agents must account for.
 
-Keep notes focused on one retrievable unit of knowledge. Prefer a parent map plus focused child notes when a topic spans distinct capability behavior, component boundaries, request lifecycle, API/message contracts, data or indexing, frontend interaction, backend service behavior, operations, quality rules, or architecture decisions. Split notes according to the size and scope thresholds in the `$wiki` skill before they become broad source inventories.
+Keep notes focused on one retrievable unit of knowledge. Prefer a parent map plus focused child notes when a topic spans distinct capability behavior, component boundaries, request lifecycle, API/message contracts, data or indexing, frontend interaction, backend service behavior, operations, quality rules, or architecture decisions. Split notes according to the size and scope thresholds in the `$wiki` skill before they become broad source inventories. Treat `wiki_schema_report` oversized-note warnings as actionable maintenance signals.
 
 ## Capability Specifications
 

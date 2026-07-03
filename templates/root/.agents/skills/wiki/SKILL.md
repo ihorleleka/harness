@@ -41,6 +41,7 @@ Use native MCP tool calls when available: `wiki_search`, `wiki_read`, `wiki_list
 - **Traceability**: include repository-relative source paths, code symbols, tests, migrations, tickets, user confirmations, or other evidence for durable claims.
 - **Retrieval usefulness**: a useful note should be findable by likely future search terms and return a packet that can guide the next action without forcing a full-note read for routine use.
 - **Topic coverage**: write-back should cover each distinct durable topic discovered during the work, not only the note that happened to be retrieved first.
+- **Schema diagnostics**: treat `wiki_schema_report` warnings as actionable maintenance input, especially oversized notes, missing typed sections, stale verification, duplicate IDs, and broken links.
 - **Separation of sources**: distinguish wiki-backed facts, code-verified facts, and inference whenever the distinction affects the answer.
 - **Staleness handling**: use packet fields such as `last_verified`, `needs_verification`, `confidence`, and `gaps` to decide whether to trust, qualify, or verify guidance.
 - **Honest gaps**: if retrieval does not answer the question, say so. Continue with code inspection only when appropriate, and label inference as inference.
@@ -57,8 +58,10 @@ Write notes around one retrievable unit of knowledge. A unit may be a capability
 Targets:
 
 - Most focused notes should stay under 150 lines or roughly 1,500 words.
-- Large capability specifications may reach 250 lines or roughly 2,500 words when the sections remain cohesive and independently useful.
-- Split or summarize before a note exceeds 300 lines, roughly 3,000 words, more than 8 top-level sections, or more than 30 evidence anchors.
+- Large capability specifications may approach the configured MCP note-size warning threshold only when the sections remain cohesive and independently useful.
+- Split or summarize before a note exceeds the MCP `KB_NOTE_MAX_LINES` threshold, which defaults to 200 lines, or before it grows past more than 8 top-level sections or more than 30 evidence anchors.
+
+`wiki_schema_report` reports oversized notes above the MCP threshold. Treat those warnings as a maintenance queue: split, summarize, or move detailed material into focused child notes before adding more content to the oversized note.
 
 Split a note sooner when:
 
@@ -261,7 +264,7 @@ Use when converting existing notes into concise typed packet sources.
 
 Workflow:
 
-1. Run `wiki_schema_report` when available. Use per-note issues, gaps, `kind`, `packet_compiled`, missing sections, duplicate IDs, and broken links as the queue.
+1. Run `wiki_schema_report` when available. Use per-note issues, gaps, `kind`, `packet_compiled`, missing sections, oversized-note warnings, duplicate IDs, and broken links as the queue.
 2. If unavailable, list notes with `wiki_list`; otherwise inspect `wiki/**/*.md`.
 3. Read candidate notes with `wiki_read` or normal file reads.
 4. Classify each note as `rule`, `decision`, `reference`, `runbook`, or `glossary`.
@@ -278,6 +281,7 @@ Use when a durable wiki gap exists, existing guidance is stale or conflicting, o
 Shared rules:
 
 - Meet the `AGENTS.md` write-back criteria before writing.
+- Run `wiki_schema_report` first when the task is broad, when changing several notes, or when adding to a note that may already be large. Use oversized-note warnings as split or summarize candidates.
 - Build a write-back plan for the verified durable topics before editing notes.
 - Update an existing note when it is the clear owner and remains focused; create or split focused notes when no clear owner exists or the owner has grown too broad.
 - Choose the narrowest correct `kind`.
@@ -307,7 +311,7 @@ Use for explicit schema, retrieval, drift, provenance, trust, or quality checks.
 Workflow:
 
 1. Run `wiki_schema_report` when available.
-2. Inspect packet gaps, stale verification, duplicate IDs, broken links, missing sections, and uncompiled notes.
+2. Inspect packet gaps, stale verification, duplicate IDs, broken links, oversized-note warnings, missing sections, and uncompiled notes.
 3. Run representative `wiki_search` queries for one rule/decision, one reference fact, and one likely developer search phrase.
 4. For each representative query, check whether the expected note appears in the top results, whether the packet can guide the next action without a full-note read, whether stale or low-confidence packets are clearly marked, and whether missing guidance is a durable follow-up candidate.
 5. Read full notes only where the report or packet results show ambiguity.
