@@ -56,6 +56,20 @@ Treat user corrections, durable preferences, and repeated error-to-fix lessons a
 
 After every wiki write, perform the smallest useful verification: read/search the touched note, run a schema report for migration/audit work, or run a representative search when improving retrieval.
 
+## Long-Running Implementation Cadence
+
+For long-running implementation work, keep wiki retrieval active throughout. The initial retrieval before starting is not enough; new topics emerge as work progresses.
+
+Before starting each new major task area, component, integration boundary, data/API contract, build/deployment area, or unfamiliar subsystem, run focused `$wiki` retrieval for that specific topic and any likely governing guidance. Re-query when code inspection reveals a new concrete capability, owner note, placement concern, quality constraint, or operational risk that was not covered by earlier packets.
+
+Do not re-query for tiny literal edits where the relevant owner note was already retrieved and remains clearly applicable. Do re-query when moving from one task area to another, when the task introduces a new slice/component/contract, when retrieved guidance is stale or incomplete, or when implementation choices depend on architecture, placement, data flow, security, operations, tests, or public behavior.
+
+Do not defer all wiki write-back until work is complete. After each major completed task group, runtime spike, architecture decision, reusable contract, build/deployment behavior, integration boundary, or verification pattern, pause briefly and evaluate the write-back criteria above.
+
+Write to the wiki during implementation when verified knowledge would help future sessions continue correctly without rediscovering the same facts. Prefer updating or creating the smallest owner note for the durable topic, then continue implementation. Skip wiki writes for purely local task progress, transient failures, generated output, or facts already captured accurately in an owner note.
+
+For long implementations, repeat this checkpoint periodically instead of proceeding indefinitely through the task list. At minimum, reassess wiki write-back when moving between major task areas or when the completed area established durable contracts, decisions, or runbooks.
+
 ## Delivery Standard
 
 Report wiki activity only when it changes the user-visible outcome:

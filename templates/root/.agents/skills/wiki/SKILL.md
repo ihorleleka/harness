@@ -285,7 +285,7 @@ Shared rules:
 - Build a write-back plan for the verified durable topics before editing notes.
 - Update an existing note when it is the clear owner and remains focused; create or split focused notes when no clear owner exists or the owner has grown too broad.
 - Choose the narrowest correct `kind`.
-- Generalize the invariant; put task-specific examples in `Evidence` unless the specificity is the invariant.
+- **Generalize guidance; put implementation-specific examples in `Evidence` unless the specificity itself is the invariant.** Write rules, patterns, and contracts using placeholder terminology and technology-neutral wording so guidance applies across the widest scope (different domains, frameworks, technologies). When a note documents behavior that spans multiple implementations or components, reference specific examples only in `Evidence` sections with explicit context.
 - Set `last_verified` to today's date on every touched note.
 - Update index links when creating, moving, or renaming notes.
 - Apply the note scope and size limits during both new note creation and additive updates. Split before adding more detail to an oversized or mixed-concern note.
