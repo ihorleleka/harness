@@ -160,15 +160,6 @@ function copyManagedAgentFiles(agentsRoot) {
   }
 }
 
-function hasHarnessMarker(agentsRoot) {
-  return fs.existsSync(path.join(agentsRoot, MARKER_FILE));
-}
-
-function isEmptyDirectory(dir) {
-  if (!fs.existsSync(dir)) return true;
-  return fs.readdirSync(dir).length === 0;
-}
-
 function readPackageMetadata() {
   if (packageMetadata !== null) return packageMetadata;
   const manifestPath = path.join(PACKAGE_ROOT, "package.json");
@@ -209,14 +200,6 @@ function removeLegacySkillDirs(agentsRoot) {
 }
 
 function copyHarnessPayload(agentsRoot, options) {
-  const canWriteExisting =
-    options.force || hasHarnessMarker(agentsRoot) || isEmptyDirectory(agentsRoot);
-  if (!canWriteExisting) {
-    throw new Error(
-      `${agentsRoot} already exists and was not installed by harness. Re-run with --force to replace managed files.`
-    );
-  }
-
   ensureDir(agentsRoot);
   const removedLegacySkills = removeLegacySkillDirs(agentsRoot);
   copyManagedAgentFiles(agentsRoot);
@@ -232,10 +215,236 @@ function rewriteAgentsDir(content, agentsDir) {
   return content.replace(/\.agents/g, normalized);
 }
 
-function copyRootPayload(targetRoot, options) {
-  if (options.skipRoot) return { copied: [], skipped: [] };
+function normalizeTrailingNewline(content) {
+  return content.replace(/\s*$/, "\n");
+}
 
-  const result = { copied: [], skipped: [] };
+function getMarkdownSectionName(line) {
+  const match = line.match(/^##\s+(.+?)\s*$/);
+  return match ? match[1] : null;
+}
+
+function getAgentsPolicySectionNames(templateContent) {
+  return new Set(
+    templateContent
+      .split(/\r?\n/)
+      .map(getMarkdownSectionName)
+      .filter(Boolean)
+  );
+}
+
+function removeMarkdownSectionsByName(content, sectionNames) {
+  const lines = content.split(/\r?\n/);
+  const output = [];
+  let skipping = false;
+
+  for (const line of lines) {
+    const sectionName = getMarkdownSectionName(line);
+    if (sectionName) {
+      skipping = sectionNames.has(sectionName);
+    }
+
+    if (!skipping) output.push(line);
+  }
+
+  return output.join("\n").replace(/\s*$/, "\n");
+}
+
+function removeLegacyUnmarkedAgentsPolicy(existing, templateContent) {
+  const template = templateContent.trim();
+  if (existing.trim() === template) return "";
+
+  const exactIndex = existing.indexOf(template);
+  if (exactIndex !== -1) {
+    return `${existing.slice(0, exactIndex)}${existing.slice(exactIndex + template.length)}`;
+  }
+
+  const signature =
+    "This repository uses `$wiki` as the governed project knowledge workflow.";
+  const finalSentence =
+    "Keep responses concise by default: changed files, verification, and decision-changing context.";
+  const signatureIndex = existing.indexOf(signature);
+  const finalIndex =
+    signatureIndex === -1 ? -1 : existing.indexOf(finalSentence, signatureIndex);
+
+  if (signatureIndex === -1 || finalIndex === -1) return existing;
+
+  return removeMarkdownSectionsByName(existing, getAgentsPolicySectionNames(templateContent));
+}
+
+function mergeAgentsPolicy(existing, templateContent) {
+  const block = templateContent.trim();
+  if (!existing.trim()) return `${block}\n`;
+  const withoutLegacyPolicy = removeLegacyUnmarkedAgentsPolicy(existing, templateContent);
+  if (!withoutLegacyPolicy.trim()) return `${block}\n`;
+  return `${normalizeTrailingNewline(withoutLegacyPolicy).trimEnd()}\n\n${block}\n`;
+}
+
+function readJsonConfig(file) {
+  return JSON.parse(stripJsonComments(fs.readFileSync(file, "utf8")));
+}
+
+function stripJsonComments(content) {
+  let output = "";
+  let inString = false;
+  let escaped = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  for (let i = 0; i < content.length; i += 1) {
+    const char = content[i];
+    const next = content[i + 1];
+
+    if (inLineComment) {
+      if (char === "\n" || char === "\r") {
+        inLineComment = false;
+        output += char;
+      }
+      continue;
+    }
+
+    if (inBlockComment) {
+      if (char === "*" && next === "/") {
+        inBlockComment = false;
+        i += 1;
+      }
+      continue;
+    }
+
+    if (!inString && char === "/" && next === "/") {
+      inLineComment = true;
+      i += 1;
+      continue;
+    }
+
+    if (!inString && char === "/" && next === "*") {
+      inBlockComment = true;
+      i += 1;
+      continue;
+    }
+
+    output += char;
+
+    if (escaped) {
+      escaped = false;
+    } else if (char === "\\") {
+      escaped = true;
+    } else if (char === "\"") {
+      inString = !inString;
+    }
+  }
+
+  return output.replace(/,\s*([}\]])/g, "$1");
+}
+
+function writeJsonConfig(file, value) {
+  ensureDir(path.dirname(file));
+  fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function wikiManagerJsonServer(agentsDir) {
+  return {
+    command: "node",
+    args: [`${agentsDir.replace(/\\/g, "/")}/run-wiki-manager.mcp.js`],
+  };
+}
+
+function mergeJsonRootAsset(sourcePath, targetPath, relativePath, options) {
+  let config = {};
+  if (fs.existsSync(targetPath)) {
+    config = readJsonConfig(targetPath);
+  }
+
+  if (relativePath === ".vscode/mcp.json") {
+    config.servers = config.servers && typeof config.servers === "object" ? config.servers : {};
+    config.servers["wiki-manager"] = wikiManagerJsonServer(options.agentsDir);
+  } else if (relativePath === ".claude/settings.local.json") {
+    config.mcpServers =
+      config.mcpServers && typeof config.mcpServers === "object" ? config.mcpServers : {};
+    config.mcpServers["wiki-manager"] = wikiManagerJsonServer(options.agentsDir);
+  } else if (relativePath === "opencode.jsonc") {
+    config.mcp = config.mcp && typeof config.mcp === "object" ? config.mcp : {};
+    config.mcp["wiki-manager"] = {
+      type: "local",
+      enabled: true,
+      command: ["node", `${options.agentsDir.replace(/\\/g, "/")}/run-wiki-manager.mcp.js`],
+    };
+    config.instructions = Array.isArray(config.instructions) ? config.instructions : [];
+    if (!config.instructions.includes("AGENTS.md")) config.instructions.push("AGENTS.md");
+    if (!config.$schema) {
+      const template = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
+      if (template.$schema) config.$schema = template.$schema;
+    }
+  } else {
+    return false;
+  }
+
+  writeJsonConfig(targetPath, config);
+  return true;
+}
+
+function removeExistingCodexWikiBlock(content) {
+  const lines = content.split(/\r?\n/);
+  const output = [];
+  let skipping = false;
+
+  for (const line of lines) {
+    const table = line.match(/^\s*\[([^\]]+)\]\s*$/);
+    if (table) {
+      const name = table[1];
+      if (name === "mcp_servers.wiki-manager" || name.startsWith("mcp_servers.wiki-manager.")) {
+        skipping = true;
+        continue;
+      }
+      skipping = false;
+    }
+    if (!skipping) output.push(line);
+  }
+
+  return output.join("\n").replace(/\s*$/, "\n");
+}
+
+function mergeCodexToml(existing, templateContent) {
+  const block = templateContent.trim();
+  const withoutOldWikiBlock = removeExistingCodexWikiBlock(existing);
+  if (!withoutOldWikiBlock.trim()) return `${block}\n`;
+  return `${withoutOldWikiBlock.trimEnd()}\n\n${block}\n`;
+}
+
+function writeRootAsset(sourcePath, targetPath, relativePath, options) {
+  const sourceContent = rewriteAgentsDir(fs.readFileSync(sourcePath, "utf8"), options.agentsDir);
+
+  if (relativePath === "AGENTS.md") {
+    const existing = fs.existsSync(targetPath) ? fs.readFileSync(targetPath, "utf8") : "";
+    ensureDir(path.dirname(targetPath));
+    fs.writeFileSync(targetPath, mergeAgentsPolicy(existing, sourceContent), "utf8");
+    return "merged";
+  }
+
+  if (relativePath === ".codex/config.toml") {
+    const existing = fs.existsSync(targetPath) ? fs.readFileSync(targetPath, "utf8") : "";
+    ensureDir(path.dirname(targetPath));
+    fs.writeFileSync(targetPath, mergeCodexToml(existing, sourceContent), "utf8");
+    return "merged";
+  }
+
+  if (
+    [".vscode/mcp.json", ".claude/settings.local.json", "opencode.jsonc"].includes(relativePath)
+  ) {
+    mergeJsonRootAsset(sourcePath, targetPath, relativePath, options);
+    return "merged";
+  }
+
+  if (fs.existsSync(targetPath) && !options.force) return "skipped";
+  ensureDir(path.dirname(targetPath));
+  fs.writeFileSync(targetPath, sourceContent, "utf8");
+  return "copied";
+}
+
+function copyRootPayload(targetRoot, options) {
+  if (options.skipRoot) return { copied: [], skipped: [], merged: [] };
+
+  const result = { copied: [], skipped: [], merged: [] };
   const sourceRoot = path.join(PACKAGE_ROOT, "templates", "root");
   const entries = fs.readdirSync(sourceRoot, { withFileTypes: true });
 
@@ -249,18 +458,27 @@ function copyRootPayload(targetRoot, options) {
     if (entry.isDirectory()) {
       copyDirectoryWithRewrite(sourcePath, targetPath, options, result);
     } else if (entry.isFile()) {
-      if (fs.existsSync(targetPath) && !options.force) {
-        recordSkippedRootAsset(targetRoot, targetPath, result);
-        continue;
-      }
-      const content = fs.readFileSync(sourcePath, "utf8");
-      ensureDir(path.dirname(targetPath));
-      fs.writeFileSync(targetPath, rewriteAgentsDir(content, options.agentsDir), "utf8");
-      result.copied.push(path.relative(targetRoot, targetPath));
+      const relativePath = entry.name;
+      recordRootAssetResult(
+        targetRoot,
+        targetPath,
+        writeRootAsset(sourcePath, targetPath, relativePath, options),
+        result
+      );
     }
   }
 
   return result;
+}
+
+function recordRootAssetResult(targetRoot, targetPath, action, result) {
+  if (action === "skipped") {
+    recordSkippedRootAsset(targetRoot, targetPath, result);
+  } else if (action === "merged") {
+    result.merged.push(path.relative(targetRoot, targetPath));
+  } else if (action === "copied") {
+    result.copied.push(path.relative(targetRoot, targetPath));
+  }
 }
 
 function recordSkippedRootAsset(targetRoot, targetPath, result) {
@@ -277,14 +495,13 @@ function copyDirectoryWithRewrite(source, target, options, result) {
     if (entry.isDirectory()) {
       copyDirectoryWithRewrite(sourcePath, targetPath, options, result);
     } else if (entry.isFile()) {
-      if (fs.existsSync(targetPath) && !options.force) {
-        recordSkippedRootAsset(options.targetRoot, targetPath, result);
-        continue;
-      }
-      const content = fs.readFileSync(sourcePath, "utf8");
-      ensureDir(path.dirname(targetPath));
-      fs.writeFileSync(targetPath, rewriteAgentsDir(content, options.agentsDir), "utf8");
-      result.copied.push(path.relative(options.targetRoot, targetPath));
+      const relativePath = path.relative(options.targetRoot, targetPath).replace(/\\/g, "/");
+      recordRootAssetResult(
+        options.targetRoot,
+        targetPath,
+        writeRootAsset(sourcePath, targetPath, relativePath, options),
+        result
+      );
     }
   }
 }
@@ -355,7 +572,13 @@ function compareRootAssets(targetRoot, agentsDir) {
     }
     const expected = rewriteAgentsDir(fs.readFileSync(sourcePath, "utf8"), agentsDir);
     const actual = fs.readFileSync(targetPath, "utf8");
-    if (actual === expected) {
+    if (relativePath === "AGENTS.md" && actual.includes(expected.trim())) {
+      result.current.push(relativePath);
+    } else if (relativePath === ".codex/config.toml" && actual.includes(expected.trim())) {
+      result.current.push(relativePath);
+    } else if ([".vscode/mcp.json", ".claude/settings.local.json", "opencode.jsonc"].includes(relativePath)) {
+      result.current.push(relativePath);
+    } else if (actual === expected) {
       result.current.push(relativePath);
     } else {
       result.changed.push(relativePath);
@@ -581,15 +804,23 @@ function run(options) {
   if (rootAssets.copied.length > 0) {
     console.log(`Copied root assets: ${rootAssets.copied.join(", ")}`);
   }
+  if (rootAssets.merged.length > 0) {
+    console.log(`Merged root assets: ${rootAssets.merged.join(", ")}`);
+  }
   if (rootAssets.skipped.length > 0) {
     console.warn(
       `Skipped ${rootAssets.skipped.length} existing root asset(s) because --force was not set.`
     );
     console.warn(
-      "Root-level agent policy and editor MCP configuration may now differ from the managed harness template; re-run with --force to refresh committed root assets."
+      "Non-mergeable root assets may now differ from the managed harness template; re-run with --force to refresh them."
     );
   }
-  if (rootAssets.copied.length === 0 && rootAssets.skipped.length === 0 && !options.skipRoot) {
+  if (
+    rootAssets.copied.length === 0 &&
+    rootAssets.merged.length === 0 &&
+    rootAssets.skipped.length === 0 &&
+    !options.skipRoot
+  ) {
     console.log("No root assets copied; existing files were left in place.");
   }
 }

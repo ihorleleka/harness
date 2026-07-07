@@ -146,6 +146,42 @@ function assertInstall(targetRoot, agentsDir) {
   assertDeliveredSurface(targetRoot, agentsDir);
 }
 
+function assertMergedInstall(targetRoot, agentsDir) {
+  const agentsPolicy = fs.readFileSync(path.join(targetRoot, "AGENTS.md"), "utf8");
+  assert(agentsPolicy.includes("Existing repository instructions"), "existing AGENTS.md content was not preserved");
+  assert(agentsPolicy.includes("This repository uses `$wiki` as the governed project knowledge workflow."), "managed AGENTS.md wiki policy missing");
+
+  const vscodeConfig = readJson(path.join(targetRoot, ".vscode", "mcp.json"));
+  assert(vscodeConfig.servers["other-harness"], "existing VS Code MCP server was not preserved");
+  assert(vscodeConfig.servers["wiki-manager"], "wiki-manager VS Code MCP server was not merged");
+
+  const claudeConfig = readJson(path.join(targetRoot, ".claude", "settings.local.json"));
+  assert(claudeConfig.mcpServers["other-harness"], "existing Claude MCP server was not preserved");
+  assert(claudeConfig.mcpServers["wiki-manager"], "wiki-manager Claude MCP server was not merged");
+
+  const opencodeConfig = readJson(path.join(targetRoot, "opencode.jsonc"));
+  assert(opencodeConfig.mcp["other-harness"], "existing OpenCode MCP server was not preserved");
+  assert(opencodeConfig.mcp["wiki-manager"], "wiki-manager OpenCode MCP server was not merged");
+  assert(opencodeConfig.instructions.includes("OTHER.md"), "existing OpenCode instructions were not preserved");
+  assert(opencodeConfig.instructions.includes("AGENTS.md"), "AGENTS.md instruction was not merged");
+
+  const codexConfig = fs.readFileSync(path.join(targetRoot, ".codex", "config.toml"), "utf8");
+  assert(codexConfig.includes("[mcp_servers.other-harness]"), "existing Codex MCP server was not preserved");
+  assert(codexConfig.includes("[mcp_servers.wiki-manager]"), "wiki-manager Codex MCP server was not merged");
+
+  assert(fs.existsSync(path.join(targetRoot, agentsDir, "skills", "custom", "SKILL.md")), "custom skill was not preserved");
+}
+
+function assertLegacyAgentsPolicyMigrated(targetRoot) {
+  const agentsPolicy = fs.readFileSync(path.join(targetRoot, "AGENTS.md"), "utf8");
+  const signature = "This repository uses `$wiki` as the governed project knowledge workflow.";
+  const occurrences = agentsPolicy.split(signature).length - 1;
+
+  assert(agentsPolicy.includes("# Existing local instructions"), "local instructions before legacy policy were not preserved");
+  assert(agentsPolicy.includes("# More local instructions"), "local instructions after legacy policy were not preserved");
+  assert(occurrences === 1, "legacy unmarked wiki policy was duplicated instead of migrated");
+}
+
 function main() {
   prepareScratch(DEFAULT_SMOKE_ROOT);
   run(process.execPath, [path.join(ROOT, "bin", "harness.js"), "install", DEFAULT_SMOKE_ROOT, "--force"]);
@@ -160,15 +196,51 @@ function main() {
       "agents dir must be a portable direct-child directory name"
     );
   }
-  const updateWithoutForce = run(process.execPath, [
-    path.join(ROOT, "bin", "harness.js"),
-    "update",
-    DEFAULT_SMOKE_ROOT,
-  ]);
-  assert(
-    updateWithoutForce.stderr.includes("Root-level agent policy and editor MCP configuration may now differ"),
-    "update without --force did not warn about stale root assets"
+  run(process.execPath, [path.join(ROOT, "bin", "harness.js"), "update", DEFAULT_SMOKE_ROOT]);
+
+  const mergeRoot = path.join(ARTIFACTS_ROOT, "verify-smoke-merge");
+  prepareScratch(mergeRoot);
+  fs.mkdirSync(path.join(mergeRoot, ".agents", "skills", "custom"), { recursive: true });
+  fs.writeFileSync(path.join(mergeRoot, ".agents", "skills", "custom", "SKILL.md"), "# Custom\n", "utf8");
+  fs.mkdirSync(path.join(mergeRoot, ".vscode"), { recursive: true });
+  fs.mkdirSync(path.join(mergeRoot, ".claude"), { recursive: true });
+  fs.mkdirSync(path.join(mergeRoot, ".codex"), { recursive: true });
+  fs.writeFileSync(path.join(mergeRoot, "AGENTS.md"), "# Existing repository instructions\n", "utf8");
+  fs.writeFileSync(
+    path.join(mergeRoot, ".vscode", "mcp.json"),
+    `${JSON.stringify({ servers: { "other-harness": { command: "node", args: ["other.js"] } } }, null, 2)}\n`,
+    "utf8"
   );
+  fs.writeFileSync(
+    path.join(mergeRoot, ".claude", "settings.local.json"),
+    `${JSON.stringify({ mcpServers: { "other-harness": { command: "node", args: ["other.js"] } } }, null, 2)}\n`,
+    "utf8"
+  );
+  fs.writeFileSync(
+    path.join(mergeRoot, "opencode.jsonc"),
+    '{\n  // Existing harness config\n  "mcp": {\n    "other-harness": { "type": "local", "command": ["node", "other.js"] },\n  },\n  "instructions": ["OTHER.md"],\n}\n',
+    "utf8"
+  );
+  fs.writeFileSync(
+    path.join(mergeRoot, ".codex", "config.toml"),
+    '[mcp_servers.other-harness]\ncommand = "node"\nargs = ["other.js"]\n',
+    "utf8"
+  );
+  run(process.execPath, [path.join(ROOT, "bin", "harness.js"), "install", mergeRoot]);
+  assertInstall(mergeRoot, ".agents");
+  assertMergedInstall(mergeRoot, ".agents");
+
+  const legacyAgentsRoot = path.join(ARTIFACTS_ROOT, "verify-smoke-legacy-agents");
+  prepareScratch(legacyAgentsRoot);
+  const legacyPolicy = fs.readFileSync(path.join(ROOT, "templates", "root", "AGENTS.md"), "utf8");
+  fs.writeFileSync(
+    path.join(legacyAgentsRoot, "AGENTS.md"),
+    `# Existing local instructions\n\n${legacyPolicy.trim()}\n\n# More local instructions\n`,
+    "utf8"
+  );
+  run(process.execPath, [path.join(ROOT, "bin", "harness.js"), "install", legacyAgentsRoot]);
+  assertInstall(legacyAgentsRoot, ".agents");
+  assertLegacyAgentsPolicyMigrated(legacyAgentsRoot);
 
   prepareScratch(CUSTOM_SMOKE_ROOT);
   run(process.execPath, [

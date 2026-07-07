@@ -18,5 +18,9 @@ The update preserves user-added skill directories under `skills/`, replaces the
 managed `skills/wiki` skill, and removes old split harness skills from earlier
 versions.
 
+Repository `AGENTS.md` instructions and editor MCP configuration are merged by
+default. The update owns only the managed wiki policy section and the
+`wiki-manager` MCP server entries.
+
 The MCP entrypoint is `run-wiki-manager.mcp.js`. Repository-level agent policy
 and editor MCP configuration live in the repository root.

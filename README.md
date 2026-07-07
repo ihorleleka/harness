@@ -76,8 +76,11 @@ sh ./.agents/update-harness.sh --force
 
 Install and update preserve user-added skill directories under
 `.agents/skills`, replace only the managed `$wiki` skill, and remove older split
-harness skills from previous versions. Root assets are overwritten only when
-`--force` is used.
+harness skills from previous versions. Existing `AGENTS.md` instructions and
+editor MCP configuration are merged by default: the installer updates only the
+managed wiki policy section and the `wiki-manager` MCP server entries while
+leaving other harnesses, instructions, and MCP servers in place. Non-mergeable
+root assets are overwritten only when `--force` is used.
 
 ## Check Setup
 
