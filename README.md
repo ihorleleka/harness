@@ -44,7 +44,7 @@ This writes:
   .claude/      Claude MCP configuration
   .codex/       Codex MCP configuration
   .vscode/      VS Code MCP configuration
-  opencode.json OpenCode MCP configuration
+  opencode.jsonc OpenCode MCP configuration
   wiki/         consumer-owned knowledge base
 ```
 

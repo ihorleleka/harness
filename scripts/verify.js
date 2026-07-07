@@ -108,7 +108,7 @@ function assertReferencedJsTargetsExist(targetRoot, agentsDir) {
   const configFiles = [
     [".claude/settings.local.json", collectJsonStrings(readJson(path.join(targetRoot, ".claude", "settings.local.json")))],
     [".vscode/mcp.json", collectJsonStrings(readJson(path.join(targetRoot, ".vscode", "mcp.json")))],
-    ["opencode.json", collectJsonStrings(readJson(path.join(targetRoot, "opencode.json")))],
+    ["opencode.jsonc", collectJsonStrings(readJson(path.join(targetRoot, "opencode.jsonc")))],
     [".codex/config.toml", collectTomlStrings(path.join(targetRoot, ".codex", "config.toml"))],
   ];
 

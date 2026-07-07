@@ -13,7 +13,7 @@ This `AGENTS.md` is for agents working on this harness repository only. It is no
 - `templates/root/AGENTS.md`: generated consumer repository agent policy.
 - `templates/root/.agents/skills/wiki/SKILL.md`: managed `$wiki` workflow delivered to consumers.
 - `templates/root/.agents/run-wiki-manager.mcp.js`: Docker-backed MCP runner entrypoint delivered to consumers.
-- `templates/root/.claude`, `templates/root/.codex`, `templates/root/.vscode`, `templates/root/opencode.json`: editor and agent MCP configuration templates.
+- `templates/root/.claude`, `templates/root/.codex`, `templates/root/.vscode`, `templates/root/opencode.jsonc`: editor and agent MCP configuration templates.
 - `templates/root/wiki/.gitkeep`: creates the consumer-owned wiki directory; do not add template wiki content casually.
 - `scripts/verify.js`: smoke verification for install/update/status behavior, custom `--agents-dir`, generated MCP references, install marker metadata, and `npm pack --dry-run`.
 - `.artifacts/`: generated verification output. Treat as disposable and do not edit source behavior there.
