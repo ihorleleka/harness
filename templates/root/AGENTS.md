@@ -82,6 +82,9 @@ Report wiki activity only when it changes the user-visible outcome:
 
 - Follow architecture, placement, quality, and contract guidance from relevant wiki notes.
 - Prefer targeted changes within task scope; leave unrelated modernization for explicit follow-up work.
+- Prefer durable implementation over narrow prompt satisfaction. Avoid shortcuts that only make the current task appear complete while weakening maintainability, testability, security, accessibility, observability, or future extension. When a pragmatic shortcut is appropriate, make the tradeoff explicit and keep it isolated.
+- Design changes for reuse at the natural project boundary. Do not over-generalize prematurely, but avoid duplicating behavior or hard-coding assumptions when an existing abstraction, contract, configuration point, or owner module already provides the right home.
+- Preserve operational and review quality. Non-trivial changes should leave clear ownership, verification paths, and failure behavior; avoid hidden coupling, implicit global state, brittle test-only behavior, and implementation details that future agents would have to rediscover.
 - Prefer correcting the existing owner note over creating narrow duplicate notes, but create or split focused notes when a distinct durable topic lacks a clear owner or the existing note has grown too broad.
 - Use examples as evidence unless the example itself is the invariant.
 - Keep responses concise by default: changed files, verification, and decision-changing context.

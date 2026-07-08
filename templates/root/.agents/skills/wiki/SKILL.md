@@ -10,6 +10,7 @@ Use the configured `wiki-manager` MCP server as the governed knowledge interface
 ## Quality Bar
 
 - Retrieval should reduce and focus code inspection, not replace it.
+- Packets should be compact, decision-ready, and ranked for the searches future agents are likely to run.
 - Wiki writes should make future sessions faster, safer, or more correct.
 - Capability specifications should describe behavior, contracts, boundaries, and quality attributes before implementation detail.
 - Low-confidence, inferred, or incomplete product facts belong in `Open questions` until verified.
@@ -29,6 +30,7 @@ Use native MCP tool calls when available: `wiki_search`, `wiki_read`, `wiki_list
 ## Governance Rules
 
 - Prefer `wiki_search` results with `record_type: packet`.
+- Keep `wiki_search` result counts small by default: use `top_k: 3` for broad orientation or unclear tasks, and `top_k: 1` or `top_k: 2` for known capability, component, contract, runbook, rule, or literal owner-note searches. Increase `top_k` only when results are missing, stale, conflicting, ambiguous, or too thin to guide the next action.
 - Treat generated packet files as read-only; author typed Markdown notes.
 - Read the current note, merge changes locally, then write the complete Markdown note with `wiki_write`.
 - Use repository-relative paths in wiki notes, examples, evidence, anchors, and handoffs. Do not write machine-local absolute paths such as drive-rooted Windows paths, home-directory paths, temporary paths, or editor-specific file URIs into committed wiki content.
@@ -40,6 +42,8 @@ Use native MCP tool calls when available: `wiki_search`, `wiki_read`, `wiki_list
 
 - **Traceability**: include repository-relative source paths, code symbols, tests, migrations, tickets, user confirmations, or other evidence for durable claims.
 - **Retrieval usefulness**: a useful note should be findable by likely future search terms and return a packet that can guide the next action without forcing a full-note read for routine use.
+- **Packet hygiene**: keep the decision-ready summary, contract, constraints, and owner boundaries near the top. Keep long command matrices, source inventories, investigation transcripts, and implementation examples from dominating packets unless they are the core reusable guidance.
+- **Broad-query resilience**: index, overview, and development runbook notes should contain common onboarding and workflow vocabulary such as repository map, overview, install, build, test, run, local development, verification, configuration, deployment, and troubleshooting when those topics apply.
 - **Topic coverage**: write-back should cover each distinct durable topic discovered during the work, not only the note that happened to be retrieved first.
 - **Schema diagnostics**: treat `wiki_schema_report` warnings as actionable maintenance input, especially oversized notes, missing typed sections, stale verification, duplicate IDs, and broken links.
 - **Separation of sources**: distinguish wiki-backed facts, code-verified facts, and inference whenever the distinction affects the answer.
@@ -69,7 +73,9 @@ Split a note sooner when:
 - Frontend behavior, backend behavior, API contracts, data/indexing, operations, or quality rules each have enough verified detail to stand alone.
 - A note mixes `rule`, `decision`, `reference`, and `runbook` material in a way that weakens the canonical shape.
 - Evidence anchors dominate the note. Keep the governing summary in the owner note and move detailed source inventories into focused child notes or evidence sections.
+- Verification commands, operational procedures, or implementation inventories cause the note to rank above overview/runbook notes for broad orientation queries where it is not the intended owner.
 - A packet from the note cannot answer a routine query without forcing a full-note read.
+- A packet answers several unrelated future searches with unrelated details instead of one coherent retrievable unit.
 
 Use a short parent note as a map when a topic needs several notes. Keep the parent responsible for the summary, boundaries, links, and retrieval hints; put detailed contracts, workflows, or implementation anchors in focused child notes.
 
@@ -221,17 +227,17 @@ Delegation handoff:
 
 Orientation pass:
 
-1. Search for repository-level orientation using the user's goal and visible project signals.
-2. Search one task-shaped query using the user's verb plus likely governing terms.
+1. Search for repository-level orientation using the user's goal and visible project signals with `top_k: 3`.
+2. Search one task-shaped query using the user's verb plus likely governing terms with `top_k: 3`.
 3. Adopt only the top 1-3 directly relevant packets.
-4. After code inspection reveals a concrete capability or component, run one focused query for that unit.
+4. After code inspection reveals a concrete capability or component, run one focused query for that unit with `top_k: 1` or `top_k: 2`.
 
 Budgets:
 
-- Routine task: 1-3 focused searches, top 1-3 hits, 0-1 full-note reads per unit.
-- Multi-topic task: one focused search per distinct topic, usually 2-4 searches before code inspection.
+- Routine task: 1-3 focused searches, `top_k: 1-2`, 0-1 full-note reads per unit.
+- Multi-topic task: one focused search per distinct topic, usually 2-4 searches before code inspection, with `top_k: 1-2` per known topic.
 - Cross-cutting task: routine or multi-topic budget plus separate governing-guidance queries for the affected rule, contract, data, security, operations, or quality area.
-- Broad task: orientation pass, then one focused query per concrete capability or component after code inspection.
+- Broad task: orientation pass with `top_k: 3`, then one focused query per concrete capability or component after code inspection with `top_k: 1-2`.
 - Search miss: try one focused query or one focused full-note read, then surface the gap.
 
 ## Initialize
@@ -256,7 +262,9 @@ Workflow:
 5. Write only verified facts. Put clear inferences in `Evidence` or skip them.
 6. Keep notes concise: decision-ready summary first, repository-relative source paths in `Evidence`, search terms in `Retrieval hints`.
 7. Include capability specifications only for units whose behavior is concrete enough to guide implementation or reconstruction.
-8. Write complete notes with `wiki_write` when available.
+8. Ensure the initial `index.md`, `overview.md`, and `development-runbook.md` include likely broad-query vocabulary for orientation, setup, build, test, run, local development, and verification when those concepts exist in the repository.
+9. Write complete notes with `wiki_write` when available.
+10. Validate with `wiki_schema_report` and at least two representative searches: one broad orientation/workflow query and one focused owner-note query.
 
 ## Migrate
 
@@ -272,7 +280,7 @@ Workflow:
 6. Preserve durable facts, repository-relative source paths, links, explicit decisions, and active constraints.
 7. Remove stale noise, task logs, baseline-search narration, and obsolete todos unless they affect active decisions.
 8. Write complete updated notes with `wiki_write` when available.
-9. Validate with `wiki_schema_report` and 2-3 representative `wiki_search` queries when MCP tools are available.
+9. Validate with `wiki_schema_report` and 2-3 representative `wiki_search` queries when MCP tools are available. Include at least one broad orientation/workflow query when migration changes index, overview, runbook, or high-ranking capability notes.
 
 ## Maintain
 
@@ -296,13 +304,22 @@ Shared rules:
 
 Optimization workflow:
 
-1. Run 2-3 representative baseline queries.
+1. Run 2-3 representative baseline queries with disciplined `top_k` values. Include one broad orientation/workflow query when the change can affect general onboarding or verification retrieval.
 2. Correct `kind`; split mixed concerns or oversized notes when one packet cannot answer cleanly.
-3. Move decision-ready content near the top.
-4. Add likely search terms to headings or `Retrieval hints`.
+3. Move decision-ready content near the top: summary, contract, boundaries, mandatory constraints, and verification entry points before long evidence or command inventories.
+4. Add likely search terms to headings or `Retrieval hints`, including common developer vocabulary and exact code/domain names.
 5. Remove stale/noisy content that no longer affects active work, or move detailed material into focused child notes when it is still useful.
-6. Re-run baseline queries and check whether the intended note appears in the top results, whether the packet is decision-ready for routine use without a full-note read, whether stale or low-confidence packets are clearly marked, and whether common developer vocabulary maps to the note.
-7. Summarize the retrieval improvement in the response, not inside domain notes unless it changes the note's meaning.
+6. Check for result pollution: a specialized note should not outrank the overview, index, or development runbook for broad setup/build/test/run queries unless it is genuinely the intended owner.
+7. Re-run baseline queries and check whether the intended note appears in the top results, whether the packet is decision-ready for routine use without a full-note read, whether stale or low-confidence packets are clearly marked, and whether common developer vocabulary maps to the note.
+8. Summarize the retrieval improvement in the response, not inside domain notes unless it changes the note's meaning.
+
+Retrieval quality gate after maintain writes:
+
+1. Run a focused owner-note query for the changed topic with `top_k: 1` or `top_k: 2`; the changed note should appear when it is the owner.
+2. Run a broad orientation/workflow query with `top_k: 3` when the changed note added substantial verification commands, evidence inventories, setup guidance, or common workflow terms; overview/runbook notes should remain competitive for broad queries.
+3. Run a governing-guidance query when the change affects architecture, placement, contracts, security, operations, validation, or testing rules.
+4. If the wrong note ranks above the owner, adjust headings, summary, retrieval hints, or split noisy sections before finishing.
+5. If the intended owner still does not rank but the note is structurally correct, report the retrieval limitation and the exact query that exposed it.
 
 ## Audit
 
@@ -312,11 +329,18 @@ Workflow:
 
 1. Run `wiki_schema_report` when available.
 2. Inspect packet gaps, stale verification, duplicate IDs, broken links, oversized-note warnings, missing sections, and uncompiled notes.
-3. Run representative `wiki_search` queries for one rule/decision, one reference fact, and one likely developer search phrase.
-4. For each representative query, check whether the expected note appears in the top results, whether the packet can guide the next action without a full-note read, whether stale or low-confidence packets are clearly marked, and whether missing guidance is a durable follow-up candidate.
-5. Read full notes only where the report or packet results show ambiguity.
-6. Fix trivial typed-note issues with `wiki_write` only when the user asked for fixes or the issue blocks the current task.
-7. Report remaining gaps, risks, retrieval-quality signals, and recommended follow-up actions.
+3. Build a lightweight coverage map from wiki notes and visible repository signals: major applications/packages, modules/components, public APIs or commands, data stores or migrations, integrations, build/test/deploy workflows, operations, security/privacy-sensitive areas, and major user-facing capabilities. Do not require notes for every file; flag only durable subsystems where missing guidance would likely slow or mislead future work.
+4. Run a representative audit query suite with disciplined `top_k` values:
+   - broad orientation or repository map query (`top_k: 3`);
+   - build/test/run/local development query (`top_k: 3`);
+   - one architecture, placement, or coding-rule query (`top_k: 1-2`);
+   - one focused capability/component/integration query (`top_k: 1-2`);
+   - one operations, deployment, or troubleshooting query when the repository has such concerns (`top_k: 1-2`);
+   - one query for a visible but intentionally undocumented or weakly documented subsystem to test honest gap reporting (`top_k: 1-2`).
+5. For each representative query, check whether the expected note appears in the top results, whether the packet can guide the next action without a full-note read, whether stale or low-confidence packets are clearly marked, whether a specialized note is polluting broad-query rankings, and whether missing guidance is a durable follow-up candidate.
+6. Read full notes only where the report or packet results show ambiguity.
+7. Fix trivial typed-note issues with `wiki_write` only when the user asked for fixes or the issue blocks the current task.
+8. Report remaining gaps, risks, retrieval-quality signals, coverage gaps, packet-size/noise issues, and recommended follow-up actions.
 
 ## Output
 
