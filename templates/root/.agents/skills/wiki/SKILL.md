@@ -215,6 +215,8 @@ Implementation retrieval checklist:
 - Placement and ownership: search for module boundaries, file placement, layering, ownership, and extension points before creating new files or directories.
 - Architecture and patterns: search for relevant architecture decisions, reusable patterns, prohibited coupling, and replacement boundaries.
 - Contracts and data flow: search separately for API/message contracts, data model, migrations, integrations, compatibility, and import/export behavior when affected.
+- Generated or synced files: if you will edit a file that other files are generated from or synced from, run one focused search for the edit process before changing code. Use the file type or tool name plus one or two process words such as `workflow`, `runbook`, `generation`, `sync`, `migration`, `schema`, or `verification`. If the search finds no useful process, continue with code inspection and mention the gap only when it affects the work.
+- Multi-step implementation: when a change spans setup/config files, generated files, runtime code, tests, or user-facing behavior, retrieve the direct feature/component guidance and one edit-process query. Do not assume the first useful packet also explains edit order, generation steps, or verification.
 - Quality rules: search separately for coding standards, validation, testing, security, authorization, privacy, accessibility, performance, reliability, observability, or operations rules that could constrain the change.
 
 Delegation handoff:
@@ -234,7 +236,7 @@ Orientation pass:
 
 Budgets:
 
-- Routine task: 1-3 focused searches, `top_k: 1-2`, 0-1 full-note reads per unit.
+- Routine task: 1-3 focused searches, `top_k: 1-2`, 0-1 full-note reads per unit. Add at most one edit-process search when changing a file that other files are generated from or synced from.
 - Multi-topic task: one focused search per distinct topic, usually 2-4 searches before code inspection, with `top_k: 1-2` per known topic.
 - Cross-cutting task: routine or multi-topic budget plus separate governing-guidance queries for the affected rule, contract, data, security, operations, or quality area.
 - Broad task: orientation pass with `top_k: 3`, then one focused query per concrete capability or component after code inspection with `top_k: 1-2`.

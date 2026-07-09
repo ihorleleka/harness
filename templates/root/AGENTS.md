@@ -16,7 +16,7 @@ Wiki notes are committed repository content. Use repository-relative paths for e
 
 ## Retrieval Gate
 
-Before non-trivial implementation, debugging, review, planning, repository analysis, codebase orientation, codebase search, symbol or component discovery, or delegated exploration, run `$wiki` retrieval. Tiny literal lookups for an already-known file or symbol may skip retrieval. Retrieve the direct task context and any relevant governing guidance: architecture decisions, boundaries, contracts, quality attributes, placement rules, operational constraints, or reusable patterns.
+Before non-trivial implementation, debugging, review, planning, repository analysis, codebase orientation, codebase search, symbol or component discovery, or delegated exploration, run `$wiki` retrieval. Tiny literal lookups for an already-known file or symbol may skip retrieval. Retrieve the direct task context and any relevant governing guidance: architecture decisions, boundaries, contracts, quality attributes, placement rules, operational constraints, reusable patterns, implementation workflows, runbooks, and generation procedures.
 
 For delegated work, pass along or restate the retrieved governing guidance that constrains the subtask. Sub-agents should receive the same applicable rules, decisions, contracts, and open questions before narrowing into local file searches. Use a compact handoff: relevant packets or notes, binding rules, contracts, open questions, code anchors, and verification constraints.
 
