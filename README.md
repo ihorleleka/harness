@@ -5,8 +5,9 @@
 
 It gives coding agents a governed, repo-local wiki workflow: retrieve relevant
 decisions, contracts, placement rules, runbooks, and capability notes before
-editing; then write back durable knowledge when the work reveals something
-future sessions should not rediscover.
+decisions where that context can change the approach; then write back verified,
+durable knowledge when the work reveals something future sessions should not
+rediscover.
 
 ## What You Get
 
@@ -15,6 +16,8 @@ future sessions should not rediscover.
 - editor MCP configuration for Codex, Claude, OpenCode, and VS Code
 - a routed `$wiki` skill for retrieval, initialization, migration, maintenance,
   and audit
+- decision-sensitive retrieval, explicit instruction/trust boundaries, and a valid no-write outcome when no reusable knowledge changed
+- scope-aware authoring that separates generic harness rules, project-wide guidance, capability contracts, and task evidence
 - write-back guidance for focused notes, multi-note updates, and schema-report-backed note splitting
 - a committed `wiki/` folder owned by the consumer repository
 - update wrappers so committed harness files can be refreshed consistently

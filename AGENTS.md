@@ -57,6 +57,8 @@ Treat `templates/root` as an installable product surface:
 - Keep path examples portable where practical; include Windows and POSIX command variants when users need both.
 - Avoid absolute local paths in README examples, delivered templates, and wiki guidance. Consumer repositories may be cloned into different locations, so committed guidance should use repository-relative paths.
 - Do not create placeholder notes, broad topic inventories, or unimplemented wiki workflows in templates.
+- Abstract consumer-derived lessons before adding them to templates: state the repository-independent failure mode and invariant, then test the wording against a materially different scenario. Keep project-only findings in the consumer repository.
+- Prefer placeholders such as `<capability>`, `<component>`, and `<generated-file>` in generic mechanics. Preserve exact names only for this harness's own interface, layout, commands, or verification fixtures.
 
 When adding or renaming delivered files, update installer behavior, verification, README layout documentation, and package contents as needed.
 
