@@ -184,11 +184,13 @@ Use these locations as a menu, not a checklist. Create notes only when verified 
 
 Before writing after non-trivial implementation, debugging, review, or repository analysis, make a compact write-back plan from the facts already verified:
 
-1. List each distinct durable topic discovered: capability behavior, component boundary, request or invocation lifecycle, API/message contract, data or indexing model, frontend interaction, backend service behavior, operation/runbook, quality rule, or architecture decision.
+1. List each distinct durable topic discovered: capability behavior, component boundary, request or invocation lifecycle, API/message contract, data or indexing model, frontend interaction, backend service behavior, operation/runbook, quality rule, architecture decision, or cross-cutting implementation convention.
 2. Map each topic to its canonical home. Prefer existing owner notes only when the topic belongs there and the note remains within the scope and size limits.
 3. Create a new focused note when no owner exists and the topic meets the quality floor. Do not collapse separable knowledge into a broad architecture note merely because it is related to the task.
 4. Update every affected owner note whose reusable guidance changed or became newly verified. It is valid for one task to update several notes when it touched several durable topics.
 5. If a candidate topic is useful but not verified enough, add it to `Open questions` in the nearest owner note or report it as a follow-up candidate instead of creating a thin note.
+
+Treat a verified convention that controls how a class of changes is registered, generated, persisted, deployed, validated, or recovered as its own durable topic. Do not hide it solely inside a feature or incident note when a future task could need to retrieve it independently.
 
 Evidence paths in one note do not replace the need for owner notes. For example, a search architecture note may cite backend and frontend implementation files as evidence, but verified frontend filtering behavior, request lifecycle, indexing contracts, or API semantics should live in their own focused capability, component, API, data, or UI notes when they are reusable independently.
 
