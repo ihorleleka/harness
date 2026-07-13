@@ -1,5 +1,3 @@
-# Agents
-
 ## Knowledge Governance
 
 This repository uses `$wiki` as the governed project knowledge workflow. Use it for packet-first retrieval, wiki initialization, typed-note migration, note maintenance, retrieval optimization, and schema or trust audits.
@@ -66,6 +64,8 @@ For long-running work, revisit retrieval when the decision context changes or a 
 Evaluate write-back at natural task boundaries. Write during implementation only when stable knowledge materially helps continuation or handoff; otherwise write once after verification. Skip progress logs, transient failures, generated output, and facts already captured accurately.
 
 ## Delivery Standard
+
+Before declaring non-trivial implementation complete, evaluate the write-back criteria and state one of: `wiki updated: <notes>` or `no wiki write-back warranted: <reason>`. This completion gate makes the durable-knowledge decision explicit even when no wiki change is needed.
 
 Report wiki activity only when it changes the user-visible outcome:
 
