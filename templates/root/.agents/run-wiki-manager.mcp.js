@@ -5,32 +5,47 @@ const path = require("path");
 const http = require("http");
 const net = require("net");
 const { StringDecoder } = require("string_decoder");
+const {
+  DEFAULT_IMAGE,
+  canonicalRepositoryRoot,
+  deriveResourceNames,
+} = require("./wiki-manager-contract");
 
 const ROOT = path.resolve(__dirname, "..");
-const IMAGE = process.env.KB_IMAGE || "ihorleleka/project-rag-wiki:latest";
+const IMAGE = process.env.KB_IMAGE || DEFAULT_IMAGE;
 const MIN_PORT = 1111;
 const MAX_PORT = 9999;
 const CONTAINER_PORT = 1111;
+const DEFAULT_BIND_ADDRESS = "127.0.0.1";
+const KB_BIND_ADDRESS = (process.env.KB_BIND_ADDRESS || DEFAULT_BIND_ADDRESS).trim();
+const ALLOW_NETWORK_EXPOSURE = ["1", "true"].includes(
+  (process.env.KB_ALLOW_NETWORK_EXPOSURE || "").trim().toLowerCase()
+);
 const KB_WIKI_ROOT = "/workspace/wiki";
+const KB_REPOSITORY_ROOT = "/repository";
 const KB_ROOT = "/workspace/.kb";
 const HF_CACHE_ROOT = "/root/.cache/huggingface/hub";
 let kbVolume = null;
 let hfCacheVolume = null;
 const KB_EMBEDDING_MODEL = process.env.KB_EMBEDDING_MODEL || "all-MiniLM-L6-v2";
-const KB_CHUNK_SIZE = process.env.KB_CHUNK_SIZE || "500";
-const KB_CHUNK_OVERLAP = process.env.KB_CHUNK_OVERLAP || "150";
+const KB_CHUNK_TOKENS = process.env.KB_CHUNK_TOKENS || "220";
 const KB_TOP_K = process.env.KB_TOP_K || "8";
+const KB_MIN_RELEVANCE = process.env.KB_MIN_RELEVANCE || "0.35";
+const KB_EVIDENCE_MAX_ANCHORS = process.env.KB_EVIDENCE_MAX_ANCHORS || "12";
 const KB_MERGE_ADJACENT_WINDOW = process.env.KB_MERGE_ADJACENT_WINDOW || "1";
 const KB_WATCH_INTERVAL_SECONDS = process.env.KB_WATCH_INTERVAL_SECONDS || "15";
 const FIND_FREE_PORT =
   (process.env.KB_FIND_FREE_PORT || "1").trim().toLowerCase() !== "0";
 const REQUEST_TIMEOUT_MS = 2500;
 const READY_TIMEOUT_MS = 8000;
-const HEALTH_TIMEOUT_MS = 60000;
+const HEALTH_TIMEOUT_MS = parseTimeoutMs(
+  process.env.KB_HEALTH_TIMEOUT_MS,
+  70000,
+  "KB_HEALTH_TIMEOUT_MS"
+);
 const POLL_INTERVAL_MS = 500;
 
 let shuttingDown = false;
-let startedContainer = false;
 let bridgeStarted = false;
 let containerName = null;
 
@@ -61,10 +76,34 @@ function wait(ms) {
 }
 
 function makeUrls(port) {
+  let host = KB_BIND_ADDRESS;
+  if (host === "0.0.0.0") host = DEFAULT_BIND_ADDRESS;
+  if (host === "::") host = "::1";
+  if (host.includes(":")) host = `[${host}]`;
   return {
-    mcpUrl: `http://127.0.0.1:${port}/mcp/`,
-    healthUrl: `http://127.0.0.1:${port}/health`,
+    mcpUrl: `http://${host}:${port}/mcp/`,
+    healthUrl: `http://${host}:${port}/health`,
   };
+}
+
+function validateBindAddress() {
+  if (!KB_BIND_ADDRESS) {
+    throw new Error("KB_BIND_ADDRESS must not be empty.");
+  }
+  if ([DEFAULT_BIND_ADDRESS, "::1"].includes(KB_BIND_ADDRESS)) return;
+  if (!ALLOW_NETWORK_EXPOSURE) {
+    throw new Error(
+      `Refusing to publish the unauthenticated wiki-manager MCP server on ${KB_BIND_ADDRESS}. ` +
+        "Set KB_ALLOW_NETWORK_EXPOSURE=1 only if network exposure is intentional."
+    );
+  }
+}
+
+function dockerPublishArgument(port) {
+  const address = KB_BIND_ADDRESS.includes(":")
+    ? `[${KB_BIND_ADDRESS}]`
+    : KB_BIND_ADDRESS;
+  return `${address}:${port}:${CONTAINER_PORT}`;
 }
 
 function hashString(input) {
@@ -74,16 +113,6 @@ function hashString(input) {
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
-}
-
-function normalizeContainerName(input) {
-  return input
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 32) || "kb";
 }
 
 function parsePort(raw) {
@@ -200,18 +229,32 @@ async function getContainerState(container) {
   try {
     const output = await runCapture("docker", ["inspect", container], { echoStderr: false });
     const [details] = JSON.parse(output);
+    const binding = details?.NetworkSettings?.Ports?.["1111/tcp"]?.[0];
     return {
       running: Boolean(details?.State?.Running),
-      port: details?.NetworkSettings?.Ports?.["1111/tcp"]?.[0]?.HostPort || null,
+      port: binding?.HostPort || null,
+      hostIp: binding?.HostIp || null,
     };
   } catch {
-    return { running: false, port: null };
+    return { running: false, port: null, hostIp: null };
   }
+}
+
+function parseTimeoutMs(raw, fallback, name) {
+  if (!raw) return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`Invalid ${name} "${raw}". Expected a positive integer.`);
+  }
+  return value;
 }
 
 async function attachToRunningContainer(name) {
   const existingContainer = await getContainerState(name);
   if (!existingContainer.running || !existingContainer.port) {
+    return null;
+  }
+  if (existingContainer.hostIp !== KB_BIND_ADDRESS) {
     return null;
   }
 
@@ -256,43 +299,46 @@ function runCapture(command, args, options = {}) {
   });
 }
 
-async function stopContainer() {
-  if (!startedContainer || !containerName) return;
-  try {
-    await run("docker", ["rm", "-f", containerName]);
-  } catch {
-    // Ignore cleanup failures.
-  }
+async function removeContainer() {
+  if (!containerName) return;
+  await runCapture("docker", ["rm", "-f", containerName], {
+    echoStderr: false,
+  }).catch(() => {});
 }
 
 async function startContainer(port) {
   const wikiPath = path.join(ROOT, "wiki");
-  await run("docker", ["rm", "-f", containerName]).catch(() => {});
   await run("docker", [
     "run",
     "-d",
     "--name",
     containerName,
     "-p",
-    `${port}:${CONTAINER_PORT}`,
+    dockerPublishArgument(port),
     "-e",
     `KB_WIKI_ROOT=${KB_WIKI_ROOT}`,
+    "-e",
+    `KB_REPOSITORY_ROOT=${KB_REPOSITORY_ROOT}`,
     "-e",
     `KB_ROOT=${KB_ROOT}`,
     "-e",
     `KB_EMBEDDING_MODEL=${KB_EMBEDDING_MODEL}`,
     "-e",
-    `KB_CHUNK_SIZE=${KB_CHUNK_SIZE}`,
-    "-e",
-    `KB_CHUNK_OVERLAP=${KB_CHUNK_OVERLAP}`,
+    `KB_CHUNK_TOKENS=${KB_CHUNK_TOKENS}`,
     "-e",
     `KB_TOP_K=${KB_TOP_K}`,
+    "-e",
+    `KB_MIN_RELEVANCE=${KB_MIN_RELEVANCE}`,
+    "-e",
+    `KB_EVIDENCE_MAX_ANCHORS=${KB_EVIDENCE_MAX_ANCHORS}`,
     "-e",
     `KB_MERGE_ADJACENT_WINDOW=${KB_MERGE_ADJACENT_WINDOW}`,
     "-e",
     `KB_WATCH_INTERVAL_SECONDS=${KB_WATCH_INTERVAL_SECONDS}`,
     "-v",
     `${wikiPath}:${KB_WIKI_ROOT}`,
+    "-v",
+    `${ROOT}:${KB_REPOSITORY_ROOT}:ro`,
     "-v",
     `${kbVolume}:${KB_ROOT}`,
     "-v",
@@ -301,19 +347,46 @@ async function startContainer(port) {
   ]);
 }
 
-async function bootFreshContainer(port) {
+async function startOrAttachContainer(port) {
+  try {
+    await startContainer(port);
+  } catch (startError) {
+    const attachedPort = await attachToRunningContainer(containerName);
+    if (attachedPort !== null) {
+      return makeUrls(attachedPort).mcpUrl;
+    }
+
+    // A stopped or unhealthy container is stale. Removing it is safe because
+    // attachToRunningContainer has already established that it is not serving.
+    await removeContainer();
+    try {
+      await startContainer(port);
+    } catch (retryError) {
+      // Another runner may have won the create race after stale cleanup.
+      const raceWinnerPort = await attachToRunningContainer(containerName);
+      if (raceWinnerPort !== null) {
+        return makeUrls(raceWinnerPort).mcpUrl;
+      }
+      throw new Error(
+        `Unable to start or attach to KB container "${containerName}": ${retryError.message}`,
+        { cause: startError }
+      );
+    }
+  }
+
   const { healthUrl, mcpUrl } = makeUrls(port);
-  await startContainer(port);
-  startedContainer = true;
-  await waitFor(() => getHttpStatus(healthUrl), HEALTH_TIMEOUT_MS, 1000);
+  const ready = await waitFor(() => getHttpStatus(healthUrl), HEALTH_TIMEOUT_MS, 1000);
+  if (!ready) {
+    throw new Error(
+      `KB container "${containerName}" did not become healthy within ${HEALTH_TIMEOUT_MS}ms`
+    );
+  }
   return mcpUrl;
 }
 
 async function shutdown() {
   if (shuttingDown) return;
   shuttingDown = true;
-
-  await stopContainer();
   process.exit(0);
 }
 
@@ -522,26 +595,52 @@ async function main() {
     shutdown().catch(() => process.exit(1));
   });
 
-  const repoName = normalizeContainerName(path.basename(ROOT) || "repo");
-  kbVolume = process.env.KB_VOLUME || `${repoName}-kb-data`;
-  hfCacheVolume = process.env.HF_CACHE_VOLUME || "hf-cache";
-  containerName = normalizeContainerName(
-    process.env.KB_CONTAINER_NAME || `${repoName}-kb`
-  );
+  validateBindAddress();
+
+  const resourceNames = deriveResourceNames(ROOT);
+  kbVolume = resourceNames.kbVolume;
+  hfCacheVolume = resourceNames.hfCacheVolume;
+  containerName = resourceNames.containerName;
+
+  const lifecycleCommand = (process.env.KB_LIFECYCLE_COMMAND || "").trim().toLowerCase();
+  if (lifecycleCommand === "stop") {
+    await removeContainer();
+    return;
+  }
+  if (lifecycleCommand && !["start", "restart"].includes(lifecycleCommand)) {
+    throw new Error(`Unknown KB_LIFECYCLE_COMMAND: ${lifecycleCommand}`);
+  }
+  if (lifecycleCommand === "restart") {
+    await removeContainer();
+  }
 
   const attachedPort = await attachToRunningContainer(containerName);
   if (attachedPort !== null) {
+    if (lifecycleCommand) return;
     startHttpBridge(makeUrls(attachedPort).mcpUrl);
     return;
   }
 
+  if (process.env.KB_ATTACH_ONLY === "1") {
+    throw new Error(
+      `KB container "${containerName}" is not already running and healthy; attach-only diagnostics will not start or replace it`
+    );
+  }
+
   const selectedPort = await selectPort();
-  const mcpUrl = await bootFreshContainer(selectedPort);
+  const mcpUrl = await startOrAttachContainer(selectedPort);
+  if (lifecycleCommand) return;
   startHttpBridge(mcpUrl);
 }
 
-main().catch(async (err) => {
-  console.error(err);
-  await stopContainer();
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(async (err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  canonicalRepositoryRoot,
+  deriveResourceNames,
+};

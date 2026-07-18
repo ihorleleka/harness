@@ -24,3 +24,30 @@ default. The update owns only the managed wiki policy section and the
 
 The MCP entrypoint is `run-wiki-manager.mcp.js`. Repository-level agent policy
 and editor MCP configuration live in the repository root.
+
+The MCP endpoint binds to `127.0.0.1` by default because it has no built-in
+authentication and includes write tools. Intentional network exposure requires
+both `KB_BIND_ADDRESS` and `KB_ALLOW_NETWORK_EXPOSURE=1`; protect such exposure
+with an external access-control boundary.
+
+Default container and KB volume names include a stable hash of the canonical
+repository root, so repositories with identical folder names remain isolated.
+The `hf-cache` model volume stays shared. To migrate an older basename-only
+index, temporarily set `KB_VOLUME=<old-repository-name>-kb-data`; explicit
+`KB_CONTAINER_NAME`, `KB_VOLUME`, and `HF_CACHE_VOLUME` values take precedence.
+
+The repository container persists independently of individual MCP clients.
+Closing one client does not stop service for another. Use `harness start .`,
+`harness stop .`, or `harness restart .` for explicit lifecycle control.
+Concurrent clients attach to the same healthy repository container; stale or
+stopped containers are recovered on the next start.
+
+The managed runner pins a deterministic Project-Rag-Wiki image digest. Use
+`harness pull .` to fetch it deliberately, then `harness restart .`. The
+`harness status .` command reports the configured and running image plus its
+compatibility state. `KB_IMAGE` is an explicit override and is reported as one.
+
+Generated Codex configuration allows 75 seconds for cold MCP startup and 120
+seconds for tool calls. OpenCode receives its supported 75-second MCP discovery
+timeout. The live maintainer verifier uses empty KB and model-cache volumes to
+exercise cold initialization.

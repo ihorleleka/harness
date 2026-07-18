@@ -7,6 +7,21 @@ const path = require("path");
 const PACKAGE_ROOT = path.resolve(__dirname, "..");
 const DEFAULT_AGENTS_DIR = ".agents";
 const MARKER_FILE = ".harness-install.json";
+const AGENTS_POLICY_BEGIN = "<!-- BEGIN HARNESS MANAGED WIKI POLICY -->";
+const AGENTS_POLICY_END = "<!-- END HARNESS MANAGED WIKI POLICY -->";
+const CONTRACT_PATH = path.join(
+  PACKAGE_ROOT,
+  "templates",
+  "root",
+  ".agents",
+  "wiki-manager-contract.js"
+);
+const {
+  COMPATIBILITY,
+  DEFAULT_IMAGE,
+  classifyCompatibility,
+  deriveResourceNames,
+} = require(CONTRACT_PATH);
 let packageMetadata = null;
 
 const LEGACY_SKILL_DIRS = [
@@ -21,13 +36,20 @@ function printUsage() {
   harness install [target] [--force] [--agents-dir <dir>] [--skip-root]
   harness update [target] [--force] [--agents-dir <dir>] [--skip-root]
   harness status [target] [--agents-dir <dir>]
-  harness doctor [target] [--agents-dir <dir>]
+  harness doctor [target] [--agents-dir <dir>] [--live]
+  harness start [target] [--agents-dir <dir>]
+  harness stop [target] [--agents-dir <dir>]
+  harness restart [target] [--agents-dir <dir>]
+  harness pull [target] [--agents-dir <dir>]
 
 Examples:
   npx github:ihorleleka/harness install .
   npx github:ihorleleka/harness update . --force
   npx github:ihorleleka/harness status .
   npx github:ihorleleka/harness doctor .
+  npx github:ihorleleka/harness start .
+  npx github:ihorleleka/harness stop .
+  npx github:ihorleleka/harness pull .
   .agents\\update-harness.cmd
   sh ./.agents/update-harness.sh`);
 }
@@ -42,6 +64,7 @@ function parseArgs(argv) {
     agentsDirProvided: false,
     force: false,
     skipRoot: false,
+    live: false,
   };
 
   if (command === "--help" || command === "-h") {
@@ -53,6 +76,8 @@ function parseArgs(argv) {
     const arg = args.shift();
     if (arg === "--force") {
       options.force = true;
+    } else if (arg === "--live") {
+      options.live = true;
     } else if (arg === "--skip-root") {
       options.skipRoot = true;
     } else if (arg === "--agents-dir") {
@@ -179,6 +204,8 @@ function writeMarker(agentsRoot, options) {
     version: metadata.version,
     installedAt: new Date().toISOString(),
     agentsDir: options.agentsDir,
+    defaultImage: DEFAULT_IMAGE,
+    containerName: deriveResourceNames(options.targetRoot).containerName,
   };
   fs.writeFileSync(
     path.join(agentsRoot, MARKER_FILE),
@@ -219,39 +246,11 @@ function normalizeTrailingNewline(content) {
   return content.replace(/\s*$/, "\n");
 }
 
-function getMarkdownSectionName(line) {
-  const match = line.match(/^##\s+(.+?)\s*$/);
-  return match ? match[1] : null;
-}
-
-function getAgentsPolicySectionNames(templateContent) {
-  return new Set(
-    templateContent
-      .split(/\r?\n/)
-      .map(getMarkdownSectionName)
-      .filter(Boolean)
-  );
-}
-
-function removeMarkdownSectionsByName(content, sectionNames) {
-  const lines = content.split(/\r?\n/);
-  const output = [];
-  let skipping = false;
-
-  for (const line of lines) {
-    const sectionName = getMarkdownSectionName(line);
-    if (sectionName) {
-      skipping = sectionNames.has(sectionName);
-    }
-
-    if (!skipping) output.push(line);
-  }
-
-  return output.join("\n").replace(/\s*$/, "\n");
-}
-
 function removeLegacyUnmarkedAgentsPolicy(existing, templateContent) {
-  const template = templateContent.trim();
+  const template = templateContent
+    .replace(AGENTS_POLICY_BEGIN, "")
+    .replace(AGENTS_POLICY_END, "")
+    .trim();
   if (existing.trim() === template) return "";
 
   const exactIndex = existing.indexOf(template);
@@ -268,14 +267,25 @@ function removeLegacyUnmarkedAgentsPolicy(existing, templateContent) {
     signatureIndex === -1 ? -1 : existing.indexOf(finalSentence, signatureIndex);
 
   if (signatureIndex === -1 || finalIndex === -1) return existing;
-
-  return removeMarkdownSectionsByName(existing, getAgentsPolicySectionNames(templateContent));
+  const blockStart = existing.lastIndexOf("## Knowledge Governance", signatureIndex);
+  if (blockStart === -1) return existing;
+  const finalLineEnd = existing.indexOf("\n", finalIndex + finalSentence.length);
+  const blockEnd = finalLineEnd === -1 ? existing.length : finalLineEnd + 1;
+  return `${existing.slice(0, blockStart)}${existing.slice(blockEnd)}`;
 }
 
 function mergeAgentsPolicy(existing, templateContent) {
   const block = templateContent.trim();
-  if (!existing.trim()) return `${block}\n`;
-  const withoutLegacyPolicy = removeLegacyUnmarkedAgentsPolicy(existing, templateContent);
+  const beginIndex = existing.indexOf(AGENTS_POLICY_BEGIN);
+  const endIndex = beginIndex === -1 ? -1 : existing.indexOf(AGENTS_POLICY_END, beginIndex);
+  let unmanaged = existing;
+  if (beginIndex !== -1 && endIndex !== -1) {
+    unmanaged = `${existing.slice(0, beginIndex)}${existing.slice(endIndex + AGENTS_POLICY_END.length)}`;
+  } else {
+    unmanaged = removeLegacyUnmarkedAgentsPolicy(existing, templateContent);
+  }
+  if (!unmanaged.trim()) return `${block}\n`;
+  const withoutLegacyPolicy = unmanaged;
   if (!withoutLegacyPolicy.trim()) return `${block}\n`;
   return `${normalizeTrailingNewline(withoutLegacyPolicy).trimEnd()}\n\n${block}\n`;
 }
@@ -337,9 +347,139 @@ function stripJsonComments(content) {
   return output.replace(/,\s*([}\]])/g, "$1");
 }
 
-function writeJsonConfig(file, value) {
-  ensureDir(path.dirname(file));
-  fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+function scanJsonc(content) {
+  const tokens = [];
+  let index = 0;
+  while (index < content.length) {
+    const char = content[index];
+    if (/\s/.test(char)) {
+      index += 1;
+      continue;
+    }
+    if (char === "/" && content[index + 1] === "/") {
+      index = content.indexOf("\n", index + 2);
+      if (index === -1) break;
+      continue;
+    }
+    if (char === "/" && content[index + 1] === "*") {
+      const end = content.indexOf("*/", index + 2);
+      if (end === -1) throw new Error("unterminated JSONC block comment");
+      index = end + 2;
+      continue;
+    }
+    if (char === '"') {
+      const start = index;
+      index += 1;
+      let escaped = false;
+      while (index < content.length) {
+        const current = content[index];
+        index += 1;
+        if (escaped) escaped = false;
+        else if (current === "\\") escaped = true;
+        else if (current === '"') break;
+      }
+      const raw = content.slice(start, index);
+      tokens.push({ type: "string", start, end: index, value: JSON.parse(raw) });
+      continue;
+    }
+    if ("{}[]:,".includes(char)) {
+      tokens.push({ type: char, start: index, end: index + 1, value: char });
+      index += 1;
+      continue;
+    }
+    const start = index;
+    while (index < content.length && !/[\s{}\[\]:,]/.test(content[index])) index += 1;
+    tokens.push({ type: "literal", start, end: index, value: content.slice(start, index) });
+  }
+  return tokens;
+}
+
+function parseJsoncTree(content) {
+  const tokens = scanJsonc(content);
+  function parseValue(position) {
+    const token = tokens[position];
+    if (!token) throw new Error("missing JSONC value");
+    if (token.type === "{") {
+      const properties = new Map();
+      let cursor = position + 1;
+      while (tokens[cursor]?.type !== "}") {
+        const key = tokens[cursor];
+        if (key?.type !== "string" || tokens[cursor + 1]?.type !== ":") {
+          throw new Error("malformed JSONC object");
+        }
+        const parsed = parseValue(cursor + 2);
+        properties.set(key.value, { key, value: parsed.node });
+        cursor = parsed.next;
+        if (tokens[cursor]?.type === ",") cursor += 1;
+        else if (tokens[cursor]?.type !== "}") throw new Error("malformed JSONC object separator");
+      }
+      return {
+        node: { type: "object", start: token.start, end: tokens[cursor].end, close: tokens[cursor], properties },
+        next: cursor + 1,
+      };
+    }
+    if (token.type === "[") {
+      let cursor = position + 1;
+      while (tokens[cursor]?.type !== "]") {
+        const parsed = parseValue(cursor);
+        cursor = parsed.next;
+        if (tokens[cursor]?.type === ",") cursor += 1;
+        else if (tokens[cursor]?.type !== "]") throw new Error("malformed JSONC array separator");
+      }
+      return {
+        node: { type: "array", start: token.start, end: tokens[cursor].end, close: tokens[cursor] },
+        next: cursor + 1,
+      };
+    }
+    if (!["string", "literal"].includes(token.type)) throw new Error("malformed JSONC value");
+    return { node: { type: "scalar", start: token.start, end: token.end }, next: position + 1 };
+  }
+  const parsed = parseValue(0);
+  if (parsed.next !== tokens.length) throw new Error("unexpected JSONC content after root");
+  return parsed.node;
+}
+
+function lineIndentAt(content, offset) {
+  const lineStart = content.lastIndexOf("\n", offset - 1) + 1;
+  return content.slice(lineStart, offset).match(/^\s*/)?.[0] || "";
+}
+
+function renderJsonValue(value, indent) {
+  return JSON.stringify(value, null, 2).replace(/\n/g, `\n${indent}`);
+}
+
+function setJsoncPath(content, propertyPath, value) {
+  const root = parseJsoncTree(content);
+  if (root.type !== "object") throw new Error("JSONC root must be an object");
+  let parent = root;
+  for (let depth = 0; depth < propertyPath.length - 1; depth += 1) {
+    const segment = propertyPath[depth];
+    const property = parent.properties.get(segment);
+    if (!property || property.value.type !== "object") {
+      let nested = value;
+      for (let tail = propertyPath.length - 1; tail > depth; tail -= 1) {
+        nested = { [propertyPath[tail]]: nested };
+      }
+      return setJsoncPath(content, propertyPath.slice(0, depth + 1), nested);
+    }
+    parent = property.value;
+  }
+
+  const key = propertyPath[propertyPath.length - 1];
+  const existing = parent.properties.get(key);
+  if (existing) {
+    const indent = lineIndentAt(content, existing.key.start);
+    return `${content.slice(0, existing.value.start)}${renderJsonValue(value, indent)}${content.slice(existing.value.end)}`;
+  }
+
+  const parentIndent = lineIndentAt(content, parent.start);
+  const childIndent = `${parentIndent}  `;
+  const beforeClose = content.slice(parent.start + 1, parent.close.start);
+  const hasProperties = parent.properties.size > 0;
+  const hasTrailingComma = /,\s*(?:(?:\/\/[^\n]*(?:\n|$))|(?:\/\*[\s\S]*?\*\/)|\s)*$/.test(beforeClose);
+  const prefix = hasProperties ? (hasTrailingComma ? "\n" : ",\n") : "\n";
+  const insertion = `${prefix}${childIndent}${JSON.stringify(key)}: ${renderJsonValue(value, childIndent)}\n${parentIndent}`;
+  return `${content.slice(0, parent.close.start)}${insertion}${content.slice(parent.close.start)}`;
 }
 
 function wikiManagerJsonServer(agentsDir) {
@@ -350,37 +490,44 @@ function wikiManagerJsonServer(agentsDir) {
 }
 
 function mergeJsonRootAsset(sourcePath, targetPath, relativePath, options) {
-  let config = {};
-  if (fs.existsSync(targetPath)) {
-    config = readJsonConfig(targetPath);
-  }
+  let content = fs.existsSync(targetPath) ? fs.readFileSync(targetPath, "utf8") : "{}\n";
+  // Validate before editing so malformed user configuration is never replaced.
+  readJsonConfig(targetPath && fs.existsSync(targetPath) ? targetPath : sourcePath);
 
   if (relativePath === ".vscode/mcp.json") {
-    config.servers = config.servers && typeof config.servers === "object" ? config.servers : {};
-    config.servers["wiki-manager"] = wikiManagerJsonServer(options.agentsDir);
+    content = setJsoncPath(content, ["servers", "wiki-manager"], wikiManagerJsonServer(options.agentsDir));
   } else if (relativePath === ".claude/settings.local.json") {
-    config.mcpServers =
-      config.mcpServers && typeof config.mcpServers === "object" ? config.mcpServers : {};
-    config.mcpServers["wiki-manager"] = wikiManagerJsonServer(options.agentsDir);
+    content = setJsoncPath(content, ["mcpServers", "wiki-manager"], wikiManagerJsonServer(options.agentsDir));
   } else if (relativePath === "opencode.jsonc") {
-    config.mcp = config.mcp && typeof config.mcp === "object" ? config.mcp : {};
-    config.mcp["wiki-manager"] = {
+    content = setJsoncPath(content, ["mcp", "wiki-manager"], {
       type: "local",
       enabled: true,
+      timeout: 75000,
       command: ["node", `${options.agentsDir.replace(/\\/g, "/")}/run-wiki-manager.mcp.js`],
-    };
+    });
+    const config = JSON.parse(stripJsonComments(content));
     config.instructions = Array.isArray(config.instructions) ? config.instructions : [];
     if (!config.instructions.includes("AGENTS.md")) config.instructions.push("AGENTS.md");
-    if (!config.$schema) {
-      const template = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
-      if (template.$schema) config.$schema = template.$schema;
-    }
+    content = setJsoncPath(content, ["instructions"], config.instructions);
+    if (!config.$schema) content = setJsoncPath(content, ["$schema"], JSON.parse(fs.readFileSync(sourcePath, "utf8")).$schema);
   } else {
     return false;
   }
 
-  writeJsonConfig(targetPath, config);
+  ensureDir(path.dirname(targetPath));
+  fs.writeFileSync(targetPath, normalizeTrailingNewline(content), "utf8");
   return true;
+}
+
+function mergeVscodeSettings(sourcePath, targetPath) {
+  let content = fs.existsSync(targetPath) ? fs.readFileSync(targetPath, "utf8") : "{}\n";
+  if (fs.existsSync(targetPath)) readJsonConfig(targetPath);
+  const managed = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
+  for (const [key, value] of Object.entries(managed)) {
+    content = setJsoncPath(content, [key], value);
+  }
+  ensureDir(path.dirname(targetPath));
+  fs.writeFileSync(targetPath, normalizeTrailingNewline(content), "utf8");
 }
 
 function removeExistingCodexWikiBlock(content) {
@@ -432,6 +579,11 @@ function writeRootAsset(sourcePath, targetPath, relativePath, options) {
     [".vscode/mcp.json", ".claude/settings.local.json", "opencode.jsonc"].includes(relativePath)
   ) {
     mergeJsonRootAsset(sourcePath, targetPath, relativePath, options);
+    return "merged";
+  }
+
+  if (relativePath === ".vscode/settings.json") {
+    mergeVscodeSettings(sourcePath, targetPath);
     return "merged";
   }
 
@@ -530,10 +682,7 @@ function collectTemplateFiles(sourceRoot, prefix = "") {
 }
 
 function discoverAgentsDir(targetRoot, requestedAgentsDir, wasProvided) {
-  const requestedRoot = path.join(targetRoot, requestedAgentsDir);
-  if (wasProvided || fs.existsSync(path.join(requestedRoot, MARKER_FILE))) {
-    return requestedAgentsDir;
-  }
+  if (wasProvided) return requestedAgentsDir;
 
   const candidates = [];
   for (const entry of fs.readdirSync(targetRoot, { withFileTypes: true })) {
@@ -542,6 +691,12 @@ function discoverAgentsDir(targetRoot, requestedAgentsDir, wasProvided) {
     if (fs.existsSync(markerPath)) candidates.push(entry.name);
   }
 
+  if (candidates.length > 1) {
+    throw new Error(
+      `Multiple harness installations found (${candidates.sort().join(", ")}); ` +
+        "re-run with --agents-dir <dir> to choose one explicitly."
+    );
+  }
   if (candidates.length === 1) return candidates[0];
   return requestedAgentsDir;
 }
@@ -564,97 +719,146 @@ function compareRootAssets(targetRoot, agentsDir) {
   };
 
   for (const relativePath of files) {
+    const portablePath = relativePath.replace(/\\/g, "/");
     const sourcePath = path.join(sourceRoot, relativePath);
     const targetPath = path.join(targetRoot, relativePath);
     if (!fs.existsSync(targetPath)) {
-      result.missing.push(relativePath);
+      result.missing.push(portablePath);
       continue;
     }
     const expected = rewriteAgentsDir(fs.readFileSync(sourcePath, "utf8"), agentsDir);
     const actual = fs.readFileSync(targetPath, "utf8");
-    if (relativePath === "AGENTS.md" && actual.includes(expected.trim())) {
-      result.current.push(relativePath);
-    } else if (relativePath === ".codex/config.toml" && actual.includes(expected.trim())) {
-      result.current.push(relativePath);
-    } else if ([".vscode/mcp.json", ".claude/settings.local.json", "opencode.jsonc"].includes(relativePath)) {
-      result.current.push(relativePath);
+    if (portablePath === "AGENTS.md" && actual.includes(expected.trim())) {
+      result.current.push(portablePath);
+    } else if (portablePath === ".codex/config.toml" && actual.includes(expected.trim())) {
+      result.current.push(portablePath);
+    } else if ([".vscode/mcp.json", ".claude/settings.local.json", "opencode.jsonc"].includes(portablePath)) {
+      const validation = validateMcpConfig(targetRoot, agentsDir, portablePath);
+      (validation.state === "current" ? result.current : result.changed).push(portablePath);
+    } else if (portablePath === ".vscode/settings.json") {
+      try {
+        const managed = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
+        const installed = readJsonConfig(targetPath);
+        const isCurrent = Object.entries(managed).every(
+          ([key, value]) => JSON.stringify(installed[key]) === JSON.stringify(value)
+        );
+        (isCurrent ? result.current : result.changed).push(portablePath);
+      } catch {
+        result.changed.push(portablePath);
+      }
     } else if (actual === expected) {
-      result.current.push(relativePath);
+      result.current.push(portablePath);
     } else {
-      result.changed.push(relativePath);
+      result.changed.push(portablePath);
     }
   }
 
   return result;
 }
 
-function collectJsonStrings(value, output = []) {
-  if (typeof value === "string") {
-    output.push(value);
-    return output;
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) collectJsonStrings(item, output);
-    return output;
-  }
-  if (value && typeof value === "object") {
-    for (const item of Object.values(value)) collectJsonStrings(item, output);
-  }
-  return output;
+function portablePath(value) {
+  return String(value || "").replace(/\\/g, "/");
 }
 
-function collectTomlStrings(file) {
-  const content = fs.readFileSync(file, "utf8");
-  return [...content.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+function validateRunner(targetRoot, agentsDir, command, args) {
+  const expectedRunner = `${portablePath(agentsDir)}/run-wiki-manager.mcp.js`;
+  if (command !== "node") return { state: "changed", detail: "wiki-manager command must be node" };
+  const actualRunner = Array.isArray(args) && args.length === 1 ? portablePath(args[0]) : "";
+  if (!actualRunner || actualRunner !== expectedRunner) {
+    return { state: "changed", detail: `wiki-manager args must reference ${expectedRunner}` };
+  }
+  const resolved = path.resolve(targetRoot, actualRunner);
+  const expectedResolved = path.resolve(targetRoot, expectedRunner);
+  if (resolved !== expectedResolved || !fs.existsSync(expectedResolved)) {
+    return { state: "changed", detail: `wiki-manager runner is missing or resolves outside ${expectedRunner}` };
+  }
+  return { state: "current", detail: "" };
+}
+
+function codexWikiManagerEntry(content) {
+  const lines = content.split(/\r?\n/);
+  const header = "[mcp_servers.wiki-manager]";
+  const start = lines.findIndex((line) => line.trim() === header);
+  if (start === -1) return null;
+  const block = [];
+  for (let index = start + 1; index < lines.length; index += 1) {
+    if (/^\s*\[/.test(lines[index])) break;
+    block.push(lines[index]);
+  }
+  const text = block.join("\n");
+  const command = text.match(/^\s*command\s*=\s*"([^"]+)"\s*$/m)?.[1];
+  const argsBody = text.match(/^\s*args\s*=\s*\[([^\]]*)\]\s*$/m)?.[1];
+  if (!command || argsBody === undefined) return { malformed: true };
+  const args = [...argsBody.matchAll(/"([^"]*)"/g)].map((match) => match[1]);
+  return { command, args };
+}
+
+function validateMcpConfig(targetRoot, agentsDir, configFile) {
+  const configPath = path.join(targetRoot, configFile);
+  if (!fs.existsSync(configPath)) return { state: "missing", detail: "file missing", additions: 0 };
+
+  try {
+    let entry;
+    let additions = 0;
+    if (configFile === ".codex/config.toml") {
+      const content = fs.readFileSync(configPath, "utf8");
+      entry = codexWikiManagerEntry(content);
+      additions = [...content.matchAll(/^\s*\[mcp_servers\.([^\.\]]+)\]\s*$/gm)]
+        .map((match) => match[1])
+        .filter((name) => name !== "wiki-manager").length;
+      if (entry?.malformed) {
+        return { state: "invalid", detail: "wiki-manager TOML entry is malformed", additions };
+      }
+    } else {
+      const config = readJsonConfig(configPath);
+      if (!config || typeof config !== "object" || Array.isArray(config)) {
+        return { state: "invalid", detail: "top-level config is not an object", additions: 0 };
+      }
+      let servers;
+      if (configFile === ".vscode/mcp.json") servers = config.servers;
+      if (configFile === ".claude/settings.local.json") servers = config.mcpServers;
+      if (configFile === "opencode.jsonc") servers = config.mcp;
+      if (!servers || typeof servers !== "object" || Array.isArray(servers)) {
+        return { state: "changed", detail: "wiki-manager server collection is missing", additions: 0 };
+      }
+      entry = servers["wiki-manager"];
+      additions = Object.keys(servers).filter((name) => name !== "wiki-manager").length;
+    }
+
+    if (!entry) return { state: "changed", detail: "wiki-manager entry is missing", additions };
+    if (typeof entry !== "object" || Array.isArray(entry)) {
+      return { state: "invalid", detail: "wiki-manager entry is malformed", additions };
+    }
+    const command = configFile === "opencode.jsonc" ? entry.command?.[0] : entry.command;
+    const args = configFile === "opencode.jsonc" ? entry.command?.slice(1) : entry.args;
+    return { ...validateRunner(targetRoot, agentsDir, command, args), additions };
+  } catch (error) {
+    return { state: "invalid", detail: `unreadable or invalid: ${error.message}`, additions: 0 };
+  }
 }
 
 function checkMcpReferences(targetRoot, agentsDir) {
   const configFiles = [
-    [".claude/settings.local.json", () => collectJsonStrings(readJsonSafe(path.join(targetRoot, ".claude", "settings.local.json")))],
-    [".vscode/mcp.json", () => collectJsonStrings(readJsonSafe(path.join(targetRoot, ".vscode", "mcp.json")))],
-    ["opencode.jsonc", () => collectJsonStrings(readJsonSafe(path.join(targetRoot, "opencode.jsonc")))],
-    [".codex/config.toml", () => collectTomlStrings(path.join(targetRoot, ".codex", "config.toml"))],
+    ".claude/settings.local.json",
+    ".vscode/mcp.json",
+    "opencode.jsonc",
+    ".codex/config.toml",
   ];
-
-  const expectedPrefix = `${agentsDir.replace(/\\/g, "/")}/`;
   const result = {
     ok: [],
+    changed: [],
     missing: [],
     invalid: [],
+    additions: [],
   };
 
-  for (const [configFile, readStrings] of configFiles) {
-    const configPath = path.join(targetRoot, configFile);
-    if (!fs.existsSync(configPath)) {
-      result.missing.push(configFile);
-      continue;
-    }
-
-    let strings;
-    try {
-      strings = readStrings() || [];
-    } catch {
-      result.invalid.push(`${configFile}: unreadable or invalid`);
-      continue;
-    }
-
-    const jsTargets = strings.filter((value) => {
-      const normalized = value.replace(/\\/g, "/");
-      return normalized.startsWith(expectedPrefix) && normalized.endsWith(".js");
-    });
-
-    if (jsTargets.length === 0) {
-      result.invalid.push(`${configFile}: no ${expectedPrefix}*.js runner reference`);
-      continue;
-    }
-
-    const missingTargets = jsTargets.filter((jsTarget) => !fs.existsSync(path.join(targetRoot, jsTarget)));
-    if (missingTargets.length > 0) {
-      result.invalid.push(`${configFile}: missing ${missingTargets.join(", ")}`);
-      continue;
-    }
-
-    result.ok.push(configFile);
+  for (const configFile of configFiles) {
+    const validation = validateMcpConfig(targetRoot, agentsDir, configFile);
+    if (validation.state === "current") result.ok.push(configFile);
+    if (validation.state === "changed") result.changed.push(`${configFile}: ${validation.detail}`);
+    if (validation.state === "missing") result.missing.push(configFile);
+    if (validation.state === "invalid") result.invalid.push(`${configFile}: ${validation.detail}`);
+    if (validation.additions > 0) result.additions.push(`${configFile}: ${validation.additions}`);
   }
 
   return result;
@@ -706,6 +910,11 @@ function runStatus(options) {
   const runnerPath = path.join(agentsRoot, "run-wiki-manager.mcp.js");
   const skillPath = path.join(agentsRoot, "skills", "wiki", "SKILL.md");
   const wikiPath = path.join(targetRoot, "wiki");
+  const configuredImage = process.env.KB_IMAGE || DEFAULT_IMAGE;
+  const containerName = process.env.KB_CONTAINER_NAME
+    ? deriveResourceNames(targetRoot, process.env).containerName
+    : marker?.containerName || deriveResourceNames(targetRoot).containerName;
+  const imageState = inspectContainerImage(containerName);
 
   console.log(`Harness status for ${targetRoot}`);
   console.log(`Package: ${metadata.name}@${metadata.version}`);
@@ -720,40 +929,264 @@ function runStatus(options) {
   console.log(`Runner: ${fs.existsSync(runnerPath) ? "present" : "missing"}`);
   console.log(`Managed wiki skill: ${fs.existsSync(skillPath) ? "present" : "missing"}`);
   console.log(`Wiki directory: ${fs.existsSync(wikiPath) ? "present" : "missing"}`);
+  console.log(`Configured image: ${configuredImage}`);
+  console.log(`Image configuration: ${process.env.KB_IMAGE ? "override" : "current"}`);
+  console.log(`Container: ${containerName} (${imageState.running ? "running" : "not running"})`);
+  if (imageState.running) {
+    console.log(`Running image: ${imageState.imageReference || "unknown"}`);
+    console.log(`Running image ID: ${imageState.imageId || "unknown"}`);
+    console.log(`Running image digest: ${imageState.repoDigest || "unknown"}`);
+    console.log(`Service version: ${imageState.serviceVersion || "unknown"}`);
+    console.log(`Index schema version: ${imageState.indexSchemaVersion ?? "unknown"}`);
+    console.log(`MCP tool contract version: ${imageState.mcpToolContractVersion ?? "unknown"}`);
+    console.log(`Compatibility: ${imageState.compatibility}`);
+    if (imageState.compatibility === "outdated") {
+      console.log(`Compatibility action: run harness pull . then harness restart .`);
+    } else if (imageState.compatibility === "incompatible") {
+      console.log(`Compatibility action: update the harness or remove the KB_IMAGE override`);
+    }
+  } else {
+    console.log("Compatibility: not running");
+  }
   console.log(
     `Root assets: ${rootAssets.current.length} current, ${rootAssets.changed.length} changed, ${rootAssets.missing.length} missing`
   );
   printList("Changed root assets", rootAssets.changed);
   printList("Missing root assets", rootAssets.missing);
   console.log(
-    `MCP configs: ${mcpRefs.ok.length} ok, ${mcpRefs.missing.length} missing, ${mcpRefs.invalid.length} invalid`
+    `MCP configs: ${mcpRefs.ok.length} current, ${mcpRefs.changed.length} changed, ` +
+      `${mcpRefs.missing.length} missing, ${mcpRefs.invalid.length} invalid`
   );
+  printList("Changed MCP configs", mcpRefs.changed);
   printList("Missing MCP configs", mcpRefs.missing);
   printList("Invalid MCP configs", mcpRefs.invalid);
+  printList("MCP configs with unrelated user servers", mcpRefs.additions);
 }
 
-function runDoctor(options) {
+function inspectContainerImage(containerName) {
+  const result = spawnSync("docker", ["inspect", containerName], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    stdio: "pipe",
+    windowsHide: true,
+  });
+  if (result.status !== 0) return { running: false };
+
+  const [container] = JSON.parse(result.stdout);
+  if (!container?.State?.Running) return { running: false };
+  const labels = container.Config?.Labels || {};
+  const serviceVersion = labels["org.opencontainers.image.version"];
+  const indexSchemaVersion =
+    labels["io.github.ihorleleka.project-rag-wiki.index-schema-version"];
+  const mcpToolContractVersion =
+    labels["io.github.ihorleleka.project-rag-wiki.mcp-tool-contract-version"];
+  const imageReference = container.Config?.Image || "";
+  const imageResult = spawnSync("docker", ["image", "inspect", imageReference], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    stdio: "pipe",
+    windowsHide: true,
+  });
+  let repoDigest = "";
+  if (imageResult.status === 0) {
+    const [image] = JSON.parse(imageResult.stdout);
+    repoDigest = image?.RepoDigests?.[0] || "";
+  }
+
+  return {
+    running: true,
+    imageReference,
+    imageId: container.Image || "",
+    repoDigest,
+    serviceVersion,
+    indexSchemaVersion,
+    mcpToolContractVersion,
+    compatibility: classifyCompatibility({
+      serviceVersion,
+      indexSchemaVersion,
+      mcpToolContractVersion,
+    }),
+  };
+}
+
+function inspectLoopbackBinding(containerName) {
+  const result = spawnSync(
+    "docker",
+    ["inspect", containerName, "--format", "{{json (index (index .NetworkSettings.Ports \"1111/tcp\") 0)}}"],
+    { cwd: process.cwd(), encoding: "utf8", stdio: "pipe", windowsHide: true }
+  );
+  if (result.status !== 0) return { ok: false, detail: "container port metadata unavailable" };
+  try {
+    const binding = JSON.parse(result.stdout.trim());
+    const ok = binding?.HostIp === "127.0.0.1" && Boolean(binding?.HostPort);
+    return { ok, detail: ok ? `${binding.HostIp}:${binding.HostPort}` : JSON.stringify(binding), binding };
+  } catch (error) {
+    return { ok: false, detail: `invalid port metadata: ${error.message}` };
+  }
+}
+
+async function probeHealth(binding) {
+  try {
+    const response = await fetch(`http://127.0.0.1:${binding.HostPort}/health`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    const body = await response.json();
+    return { ok: response.ok && body.status === "ok", detail: JSON.stringify(body) };
+  } catch (error) {
+    return { ok: false, detail: error.message };
+  }
+}
+
+function probeMcpRunner(runnerPath, targetRoot) {
+  return new Promise((resolve) => {
+    const child = require("child_process").spawn(process.execPath, [runnerPath], {
+      cwd: targetRoot,
+      env: { ...process.env, KB_ATTACH_ONLY: "1" },
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true,
+    });
+    let stdout = "";
+    let stderr = "";
+    let finished = false;
+    const finish = (result) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      child.stdin.end();
+      resolve(result);
+    };
+    const send = (message) => child.stdin.write(`${JSON.stringify(message)}\n`);
+    const timer = setTimeout(
+      () => finish({ ok: false, detail: `MCP probe timed out. ${stderr.trim()}`.trim() }),
+      30000
+    );
+
+    child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString("utf8");
+      while (stdout.includes("\n")) {
+        const newline = stdout.indexOf("\n");
+        const line = stdout.slice(0, newline).trim();
+        stdout = stdout.slice(newline + 1);
+        if (!line) continue;
+        let message;
+        try { message = JSON.parse(line); } catch { continue; }
+        if (message.id === 1) {
+          if (!message.result?.serverInfo) {
+            finish({ ok: false, detail: `initialize failed: ${line}` });
+            continue;
+          }
+          send({ jsonrpc: "2.0", method: "notifications/initialized", params: {} });
+          send({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
+        } else if (message.id === 2) {
+          const names = (message.result?.tools || []).map((tool) => tool.name);
+          const missing = COMPATIBILITY.requiredTools.filter((name) => !names.includes(name));
+          if (missing.length) {
+            finish({ ok: false, detail: `expected tools missing (${missing.join(", ")}): ${names.join(", ")}` });
+            continue;
+          }
+          send({
+            jsonrpc: "2.0",
+            id: 3,
+            method: "tools/call",
+            params: { name: "wiki_list", arguments: {} },
+          });
+        } else if (message.id === 3) {
+          if (message.error || message.result?.isError) {
+            finish({ ok: false, detail: `wiki_list failed: ${line}` });
+          } else {
+            finish({ ok: true, detail: "initialize, tools/list, and read-only wiki_list succeeded" });
+          }
+        }
+      }
+    });
+    child.on("error", (error) => finish({ ok: false, detail: error.message }));
+    child.on("exit", (code) => {
+      if (!finished) finish({ ok: false, detail: `MCP runner exited with ${code}. ${stderr.trim()}`.trim() });
+    });
+
+    send({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-03-26",
+        capabilities: {},
+        clientInfo: { name: "harness-doctor", version: "1.0.0" },
+      },
+    });
+  });
+}
+
+async function runDoctor(options) {
   const { targetRoot, agentsDir, agentsRoot, markerState } = getInstallState(options);
   const checks = [];
-  const addCheck = (ok, label, detail = "") => checks.push({ ok, label, detail });
+  const addCheck = (ok, label, detail = "", recovery = "") =>
+    checks.push({ ok, label, detail, recovery });
   const rootAssets = compareRootAssets(targetRoot, agentsDir);
   const mcpRefs = checkMcpReferences(targetRoot, agentsDir);
   const nodeCheck = commandWorks(process.execPath, ["--version"]);
-  const dockerCheck = commandWorks("docker", ["--version"]);
+  const dockerCommand = process.env.HARNESS_DOCKER_COMMAND || "docker";
+  const dockerPrefixArgs = process.env.HARNESS_DOCKER_PREFIX_ARGS
+    ? JSON.parse(process.env.HARNESS_DOCKER_PREFIX_ARGS)
+    : [];
+  const doctorDocker = (args) => commandWorks(dockerCommand, [...dockerPrefixArgs, ...args]);
+  const dockerCheck = doctorDocker(["--version"]);
 
-  addCheck(markerState.exists && Boolean(markerState.marker), "install marker is present and readable");
+  addCheck(markerState.exists && Boolean(markerState.marker), "install marker is present and readable", "", "run harness update . --force");
   addCheck(fs.existsSync(path.join(agentsRoot, "run-wiki-manager.mcp.js")), "MCP runner is present");
   addCheck(fs.existsSync(path.join(agentsRoot, "skills", "wiki", "SKILL.md")), "managed wiki skill is present");
   addCheck(fs.existsSync(path.join(targetRoot, "wiki")), "wiki directory is present");
   addCheck(rootAssets.missing.length === 0, "root assets are present", rootAssets.missing.join(", "));
-  addCheck(mcpRefs.invalid.length === 0, "MCP config runner references resolve", mcpRefs.invalid.join("; "));
+  addCheck(
+    mcpRefs.invalid.length === 0 && mcpRefs.changed.length === 0,
+    "managed wiki-manager entries are current",
+    [...mcpRefs.changed, ...mcpRefs.invalid].join("; ")
+  );
   addCheck(nodeCheck.ok, "Node.js is available", nodeCheck.output || nodeCheck.error);
   addCheck(dockerCheck.ok, "Docker CLI is available", dockerCheck.output || dockerCheck.error);
 
-  console.log(`Harness doctor for ${targetRoot}`);
+  if (options.live) {
+    const daemon = doctorDocker(["info", "--format", "{{.ServerVersion}}"]);
+    addCheck(daemon.ok, "Docker daemon is reachable", daemon.output || daemon.error, "start Docker Desktop or the Docker daemon, then rerun doctor --live");
+
+    const configuredImage = process.env.KB_IMAGE || DEFAULT_IMAGE;
+    const image = daemon.ok ? doctorDocker(["image", "inspect", configuredImage]) : { ok: false, output: "daemon unavailable", error: "" };
+    addCheck(image.ok, "configured image is available locally", image.ok ? configuredImage : image.output || image.error, `run harness pull .`);
+
+    const containerName = process.env.KB_CONTAINER_NAME
+      ? deriveResourceNames(targetRoot, process.env).containerName
+      : markerState.marker?.containerName || deriveResourceNames(targetRoot).containerName;
+    const imageState = daemon.ok ? inspectContainerImage(containerName) : { running: false };
+    addCheck(imageState.running, "repository container is running", containerName, "run harness start .");
+
+    const binding = imageState.running ? inspectLoopbackBinding(containerName) : { ok: false, detail: "container not running" };
+    addCheck(binding.ok, "container is bound to loopback", binding.detail, "run harness restart . after removing unsafe KB_BIND_ADDRESS overrides");
+
+    const compatible = imageState.running && ["current", "outdated"].includes(imageState.compatibility);
+    addCheck(
+      compatible,
+      "service, index schema, and MCP tool contract are compatible",
+      imageState.running
+        ? `${imageState.serviceVersion || "unknown"} / schema ${imageState.indexSchemaVersion ?? "unknown"} / tools ${imageState.mcpToolContractVersion ?? "unknown"}: ${imageState.compatibility}`
+        : "container not running",
+      "run harness pull . then harness restart ., or update the harness for the configured image"
+    );
+
+    const health = binding.ok ? await probeHealth(binding.binding) : { ok: false, detail: "loopback binding unavailable" };
+    addCheck(health.ok, "service health endpoint is ready", health.detail, "inspect docker logs for the repository container, then run harness restart .");
+
+    const mcp = health.ok
+      ? await probeMcpRunner(path.join(agentsRoot, "run-wiki-manager.mcp.js"), targetRoot)
+      : { ok: false, detail: "health check failed" };
+    addCheck(mcp.ok, "MCP handshake and read-only tool call succeed", mcp.detail, "run harness restart . and inspect the runner/container logs");
+  }
+
+  console.log(`Harness doctor for ${targetRoot} (${options.live ? "static + live" : "static"})`);
   for (const check of checks) {
     const prefix = check.ok ? "[ok]" : "[fail]";
     console.log(`${prefix} ${check.label}${check.detail ? ` - ${check.detail}` : ""}`);
+    if (!check.ok && check.recovery) console.log(`  recovery: ${check.recovery}`);
   }
 
   if (rootAssets.changed.length > 0) {
@@ -762,11 +1195,56 @@ function runDoctor(options) {
   if (mcpRefs.missing.length > 0) {
     console.log(`[info] optional MCP configs missing - ${mcpRefs.missing.join(", ")}`);
   }
+  if (mcpRefs.additions.length > 0) {
+    console.log(`[info] unrelated MCP servers preserved - ${mcpRefs.additions.join(", ")}`);
+  }
 
   const failed = checks.filter((check) => !check.ok);
   if (failed.length > 0) {
     process.exitCode = 1;
   }
+}
+
+function runLifecycle(options) {
+  const { targetRoot, agentsRoot } = getInstallState(options);
+  const runnerPath = path.join(agentsRoot, "run-wiki-manager.mcp.js");
+  if (!fs.existsSync(runnerPath)) {
+    throw new Error(`MCP runner is missing: ${runnerPath}`);
+  }
+
+  const result = spawnSync(process.execPath, [runnerPath], {
+    cwd: targetRoot,
+    env: {
+      ...process.env,
+      KB_LIFECYCLE_COMMAND: options.command,
+    },
+    encoding: "utf8",
+    stdio: "pipe",
+    windowsHide: true,
+    timeout: 120000,
+  });
+  if (result.error) {
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    throw new Error(
+      `${options.command} failed${result.stderr ? `: ${result.stderr.trim()}` : ""}`
+    );
+  }
+  console.log(`Wiki MCP container ${options.command} completed for ${targetRoot}`);
+}
+
+function runPull() {
+  const image = process.env.KB_IMAGE || DEFAULT_IMAGE;
+  const result = spawnSync("docker", ["pull", image], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    stdio: "inherit",
+    windowsHide: true,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`docker pull failed for ${image}`);
+  console.log(`Pulled wiki MCP image: ${image}`);
 }
 
 function run(options) {
@@ -779,7 +1257,14 @@ function run(options) {
     return;
   }
   if (options.command === "doctor") {
-    runDoctor(options);
+    return runDoctor(options);
+  }
+  if (["start", "stop", "restart"].includes(options.command)) {
+    runLifecycle(options);
+    return;
+  }
+  if (options.command === "pull") {
+    runPull(options);
     return;
   }
   if (options.command !== "install" && options.command !== "update") {
@@ -792,6 +1277,11 @@ function run(options) {
     throw new Error(`Target directory does not exist: ${targetRoot}`);
   }
   options.targetRoot = targetRoot;
+  options.agentsDir = discoverAgentsDir(
+    targetRoot,
+    options.agentsDir,
+    options.agentsDirProvided
+  );
 
   const agentsRoot = path.join(targetRoot, options.agentsDir);
   const removedLegacySkills = copyHarnessPayload(agentsRoot, options);
@@ -825,9 +1315,9 @@ function run(options) {
   }
 }
 
-try {
-  run(parseArgs(process.argv.slice(2)));
-} catch (err) {
+Promise.resolve()
+  .then(() => run(parseArgs(process.argv.slice(2))))
+  .catch((err) => {
   console.error(`harness: ${err.message}`);
   process.exit(1);
-}
+  });
