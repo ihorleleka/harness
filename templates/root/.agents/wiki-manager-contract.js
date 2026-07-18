@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 const DEFAULT_IMAGE =
-  "ihorleleka/project-rag-wiki@sha256:3effcf868fdf509cac5d4b97f5861b449c9495efcea4b2fcf08c72f2e2082db2";
+  "ihorleleka/project-rag-wiki@sha256:07efe1dd24b8d9d6ebfdfa25b2ae8a2b7e5347602a0079e9e93c24b57991124d";
 
 const SERVICE_COMPATIBILITY = Object.freeze({
   "0.0.9": Object.freeze({
@@ -32,17 +32,31 @@ const SERVICE_COMPATIBILITY = Object.freeze({
       "wiki_rename",
     ]),
   }),
+  "0.0.11": Object.freeze({
+    indexSchemaVersion: 6,
+    minimumMcpToolContractVersion: 4,
+    maximumMcpToolContractVersion: 4,
+    requiredTools: Object.freeze([
+      "wiki_search",
+      "wiki_read",
+      "wiki_list",
+      "wiki_schema_report",
+      "wiki_write",
+      "wiki_delete",
+      "wiki_rename",
+    ]),
+  }),
 });
 
 const COMPATIBILITY = Object.freeze({
-  harnessVersion: "0.3.0",
-  currentServiceVersion: "0.0.10",
+  harnessVersion: "0.3.1",
+  currentServiceVersion: "0.0.11",
   minimumServiceVersion: "0.0.9",
-  maximumServiceVersion: "0.0.10",
+  maximumServiceVersion: "0.0.11",
   indexSchemaVersion: 6,
   minimumMcpToolContractVersion: 4,
   maximumMcpToolContractVersion: 4,
-  requiredTools: SERVICE_COMPATIBILITY["0.0.10"].requiredTools,
+  requiredTools: SERVICE_COMPATIBILITY["0.0.11"].requiredTools,
   services: SERVICE_COMPATIBILITY,
 });
 

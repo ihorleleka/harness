@@ -240,15 +240,19 @@ function assertInstall(targetRoot, agentsDir) {
 
 function assertCompatibilityClassification() {
   assert(
-    classifyCompatibility({ serviceVersion: "0.0.10", indexSchemaVersion: 6, mcpToolContractVersion: 4 }) === "current",
+    classifyCompatibility({ serviceVersion: "0.0.11", indexSchemaVersion: 6, mcpToolContractVersion: 4 }) === "current",
     "current image metadata was not classified as current"
+  );
+  assert(
+    classifyCompatibility({ serviceVersion: "0.0.10", indexSchemaVersion: 6, mcpToolContractVersion: 4 }) === "outdated",
+    "previous image metadata was not classified as outdated"
   );
   assert(
     classifyCompatibility({ serviceVersion: "0.0.9", indexSchemaVersion: 4, mcpToolContractVersion: 1 }) === "outdated",
     "supported older image metadata was not classified as outdated"
   );
   assert(
-    classifyCompatibility({ serviceVersion: "0.0.10", indexSchemaVersion: 4, mcpToolContractVersion: 1 }) === "incompatible",
+    classifyCompatibility({ serviceVersion: "0.0.11", indexSchemaVersion: 4, mcpToolContractVersion: 1 }) === "incompatible",
     "mismatched schema/tool metadata was not classified as incompatible"
   );
   assert(

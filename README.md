@@ -85,16 +85,17 @@ after rebuilding the new default index. Existing `KB_CONTAINER_NAME`,
 
 ## Version and Compatibility Contract
 
-Harness `0.3.0` targets Project-Rag-Wiki `0.0.10`, index schema version `6`, and
+Harness `0.3.1` targets Project-Rag-Wiki `0.0.11`, index schema version `6`, and
 MCP tool contract version `4`. Its seven-tool surface includes governed delete
-and rename operations. Project-Rag-Wiki `0.0.9` (schema `4`, tool contract `1`)
-remains a recognized outdated rollback target; version/schema/tool combinations
-are validated as a matrix rather than accepting mismatched metadata.
+and rename operations. Project-Rag-Wiki `0.0.10` (schema `6`, tool contract `4`)
+and `0.0.9` (schema `4`, tool contract `1`) remain recognized outdated rollback
+targets; version/schema/tool combinations are validated as a matrix rather than
+accepting mismatched metadata.
 
 The release process publishes and verifies Project-Rag-Wiki first, replaces the
-existing immutable `0.0.9` rollback digest in `wiki-manager-contract.js` with
+previous default digest in `wiki-manager-contract.js` with
 the new image's immutable manifest digest, reruns harness verification, and only
-then publishes harness `0.3.0`. Do not publish this harness candidate while its
+then publishes harness `0.3.1`. Do not publish this harness candidate while its
 default still resolves to the outdated service pair.
 `KB_IMAGE` remains an explicit override, and status reports it as such while
 still evaluating the running image metadata.
