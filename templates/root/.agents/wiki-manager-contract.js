@@ -46,17 +46,31 @@ const SERVICE_COMPATIBILITY = Object.freeze({
       "wiki_rename",
     ]),
   }),
+  "0.0.12": Object.freeze({
+    indexSchemaVersion: 6,
+    minimumMcpToolContractVersion: 4,
+    maximumMcpToolContractVersion: 4,
+    requiredTools: Object.freeze([
+      "wiki_search",
+      "wiki_read",
+      "wiki_list",
+      "wiki_schema_report",
+      "wiki_write",
+      "wiki_delete",
+      "wiki_rename",
+    ]),
+  }),
 });
 
 const COMPATIBILITY = Object.freeze({
-  harnessVersion: "0.3.1",
-  currentServiceVersion: "0.0.11",
+  harnessVersion: "0.3.2",
+  currentServiceVersion: "0.0.12",
   minimumServiceVersion: "0.0.9",
-  maximumServiceVersion: "0.0.11",
+  maximumServiceVersion: "0.0.12",
   indexSchemaVersion: 6,
   minimumMcpToolContractVersion: 4,
   maximumMcpToolContractVersion: 4,
-  requiredTools: SERVICE_COMPATIBILITY["0.0.11"].requiredTools,
+  requiredTools: SERVICE_COMPATIBILITY["0.0.12"].requiredTools,
   services: SERVICE_COMPATIBILITY,
 });
 
