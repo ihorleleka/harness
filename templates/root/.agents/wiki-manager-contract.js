@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 const DEFAULT_IMAGE =
-  "ihorleleka/project-rag-wiki@sha256:07efe1dd24b8d9d6ebfdfa25b2ae8a2b7e5347602a0079e9e93c24b57991124d";
+  "ihorleleka/project-rag-wiki:0.0.12";
 
 const SERVICE_COMPATIBILITY = Object.freeze({
   "0.0.9": Object.freeze({
