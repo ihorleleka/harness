@@ -2,8 +2,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
-const DEFAULT_IMAGE =
-  "ihorleleka/project-rag-wiki:0.0.12";
+const DEFAULT_IMAGE = "ihorleleka/project-rag-wiki:0.0.13";
 
 const SERVICE_COMPATIBILITY = Object.freeze({
   "0.0.9": Object.freeze({
@@ -59,18 +58,31 @@ const SERVICE_COMPATIBILITY = Object.freeze({
       "wiki_delete",
       "wiki_rename",
     ]),
+  }),"0.0.13": Object.freeze({
+    indexSchemaVersion: 6,
+    minimumMcpToolContractVersion: 4,
+    maximumMcpToolContractVersion: 4,
+    requiredTools: Object.freeze([
+      "wiki_search",
+      "wiki_read",
+      "wiki_list",
+      "wiki_schema_report",
+      "wiki_write",
+      "wiki_delete",
+      "wiki_rename",
+    ]),
   }),
 });
 
 const COMPATIBILITY = Object.freeze({
-  harnessVersion: "0.3.2",
-  currentServiceVersion: "0.0.12",
+  harnessVersion: "0.3.3",
+  currentServiceVersion: "0.0.13",
   minimumServiceVersion: "0.0.9",
-  maximumServiceVersion: "0.0.12",
+  maximumServiceVersion: "0.0.13",
   indexSchemaVersion: 6,
   minimumMcpToolContractVersion: 4,
   maximumMcpToolContractVersion: 4,
-  requiredTools: SERVICE_COMPATIBILITY["0.0.12"].requiredTools,
+  requiredTools: SERVICE_COMPATIBILITY["0.0.13"].requiredTools,
   services: SERVICE_COMPATIBILITY,
 });
 
